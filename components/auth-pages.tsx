@@ -205,4 +205,5 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
 
 export function LoginPage() { return <AuthShell /> }
 export function SignupPage() { return <AuthShell signup /> }
+export function OnboardingPage() { return <main className="onboarding-page"><div className="onboarding-card"><div className="auth-brand"><ScanLine size={22} /> Niyam<span>AI</span></div><div className="eyebrow">OFFICER WORKSPACE / FIRST SESSION</div><h1>Welcome back, Officer.</h1><p>Your enforcement intelligence workspace is ready.</p><div className="role-card"><div className="role-icon"><ShieldCheck size={22} /></div><div><div className="eyebrow">FIELD ENFORCEMENT OFFICER</div><h2>Arjun Sen</h2><p>Kolkata, West Bengal • WB-LM-042</p></div><span className="badge badge-green">ACTIVE</span></div><div className="access-list"><span>Field inspections</span><span>AI scanner</span><span>Evidence capture</span><span>Compliance reports</span></div><a className="button primary" href="/dashboard">Enter command center <ArrowRight size={16} /></a></div></main> }
 export { AuthShell }
