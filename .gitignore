@@ -13,7 +13,6 @@ components.json
 package-lock.json
 pnpm-lock.yaml
 pnpm-workspace.yaml
-public/
 
 # Common ignores
 node_modules
