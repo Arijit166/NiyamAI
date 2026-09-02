@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { signOut } from 'next-auth/react'
 import {
   Activity,
   AlertTriangle,
@@ -44,6 +46,7 @@ import {
   UsersRound,
   X,
   Zap,
+  LogOut,
 } from 'lucide-react'
 
 const nav = [
@@ -59,6 +62,27 @@ const nav = [
   { label: 'Rule Intelligence', icon: FileCheck2, view: 'rules', section: 'AUDIT' },
   { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'AUDIT' },
 ]
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  executive_officer: 'Executive Officer',
+  senior_officer: 'Senior Officer',
+}
+
+function Avatar({ name, image, size = 36 }: { name?: string | null; image?: string | null; size?: number }) {
+  if (image) {
+    return (
+      <div className="avatar" style={{ width: size, height: size }}>
+        <img src={image} alt={name || 'User'} referrerPolicy="no-referrer" />
+      </div>
+    )
+  }
+  return (
+    <div className="avatar avatar-blank" style={{ width: size, height: size }}>
+      <UserRound size={Math.round(size * 0.55)} />
+    </div>
+  )
+}
 
 const inspections = [
   ['XYZ Premium Biscuits', 'Kolkata • Ward 12', 'Field Unit 04', 'Review required', '68', '2m ago'],
@@ -87,21 +111,43 @@ function StatCard({ icon: Icon, label, value, change, tone, data }: { icon: Reac
   </div>
 }
 
-function Topbar({ onMenu }: { onMenu: () => void }) {
+function Topbar({ onMenu, onLogout, user }: {
+    onMenu: () => void
+    onLogout: () => void
+    user: { name?: string | null; image?: string | null; role?: string | null }
+  }) {
   return <header className="topbar">
     <button className="mobile-menu icon-button" onClick={onMenu} aria-label="Open navigation"><Menu size={20} /></button>
     <div className="search-box"><Search size={17} /><input placeholder="Search inspections, products, evidence..." /><kbd>⌘ K</kbd></div>
-    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><button className="icon-button notification"><Bell size={18} /><b>3</b></button><div className="officer"><div className="avatar">AS</div><div><strong>Arjun Sen</strong><small>Enforcement Officer</small></div><ChevronRight size={14} /></div></div>
+    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><button className="icon-button notification"><Bell size={18} /><b>3</b></button></div><div className="officer" onClick={onLogout} style={{ cursor: 'pointer' }} title="Click to sign out">
+      <Avatar name={user.name} image={user.image} size={36} />
+      <div>
+        <strong>{user.name || 'Officer'}</strong>
+        <small>{ROLE_LABELS[user.role || ''] || 'Officer'}</small>
+      </div>
+      <LogOut size={15} style={{ marginLeft: '6px', color: '#64748b' }} />
+    </div>
   </header>
 }
 
-function Sidebar({ active, setActive, collapsed, setCollapsed }: { active: string; setActive: (v: string) => void; collapsed: boolean; setCollapsed: (v: boolean) => void }) {
+function Sidebar({ active, setActive, collapsed, setCollapsed, user }: {
+    active: string; setActive: (v: string) => void; collapsed: boolean; setCollapsed: (v: boolean) => void
+    user: { name?: string | null; image?: string | null; role?: string | null }
+  }) {
   let current = ''
   return <aside className={cn('sidebar', collapsed && 'collapsed')}>
     <div className="sidebar-head"><Logo /><button className="collapse-button" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button></div>
     <div className="workspace"><span className="workspace-dot" /><div><strong>AI Compliance</strong><small>INTELLIGENCE PLATFORM</small></div></div>
     <nav>{nav.map((item) => { const show = current !== item.section; current = item.section; return <div key={item.view}>{show && !collapsed && <div className="nav-section">{item.section}</div>}<button title={item.label} className={cn('nav-item', active === item.view && 'active', item.accent && 'accent')} onClick={() => setActive(item.view)}><item.icon size={17} /><span>{item.label}</span>{item.accent && <span className="live-dot" />}</button></div> })}</nav>
-    <div className="sidebar-bottom"><button className="nav-item" title="Notifications"><Bell size={17} /><span>Notifications</span><em>3</em></button><button className="nav-item" title="Help & Documentation"><Info size={17} /><span>Help & Documentation</span></button><div className="sidebar-profile"><div className="avatar">AS</div><div><strong>Arjun Sen</strong><small>WB-LM-042</small></div><Settings2 size={16} /></div></div>
+      <div className="sidebar-bottom"><button className="nav-item" title="Notifications"><Bell size={17} /><span>Notifications</span><em>3</em></button><button className="nav-item" title="Help & Documentation"><Info size={17} /><span>Help & Documentation</span></button><div className="sidebar-profile">
+        <Avatar name={user.name} image={user.image} size={32} />
+        <div>
+          <strong>{user.name || 'Officer'}</strong>
+          <small>{ROLE_LABELS[user.role || ''] || 'Officer'}</small>
+        </div>
+        <Settings2 size={16} />
+      </div>
+    </div>
   </aside>
 }
 
@@ -140,6 +186,76 @@ function GenericModule({ view, go }: { view: string; go: (v: string) => void }) 
 
 function ReportView({ go }: { go: (v: string) => void }) { return <div className="page-content"><div className="page-heading"><div><div className="eyebrow">CASE CLOSURE / INS-2026-00126</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div><div className="heading-actions"><button className="button secondary"><Download size={16} /> Generate PDF</button><button className="button primary" onClick={() => go('history')}><ShieldCheck size={16} /> Save case</button></div></div><div className="report-layout"><section className="report-paper"><div className="report-header"><div className="emblem"><ScanLine size={22} /></div><div><small>GOVERNMENT OF WEST BENGAL</small><h2>LEGAL METROLOGY DEPARTMENT</h2><span>Inspection intelligence report • Prototype</span></div><b>INS-2026-00126</b></div><div className="report-rule" /><div className="report-status"><div><small>COMPLIANCE RESULT</small><strong>68 / 100</strong></div><Badge tone="amber">REVIEW REQUIRED</Badge></div><div className="report-grid"><div><small>PRODUCT</small><strong>XYZ Premium Biscuits</strong></div><div><small>MANUFACTURER</small><strong>ABC Foods Pvt Ltd</strong></div><div><small>LOCATION</small><strong>Kolkata, West Bengal</strong></div><div><small>INSPECTING OFFICER</small><strong>Arjun Sen • WB-LM-042</strong></div></div><div className="report-section"><h4>Findings</h4><p><b>01</b> Consumer care information — not detected across analyzed surfaces.</p><p><b>02</b> Net quantity readability — requires officer verification.</p><p><b>03</b> MRP placement — requires manual confirmation.</p></div><div className="report-section"><h4>Evidence & audit</h4><p>7 source images • 3 AI evidence crops • SHA-256 integrity verified • 18:42:17 IST</p></div><div className="signature-line"><span>Officer verification</span><span>Digital audit trail attached</span></div></section><aside className="panel report-aside"><div className="eyebrow">REPORT SECTIONS</div>{['Inspection details','Product details','Declarations','Compliance result','Violation details','Applicable rule references','Evidence','Officer observations','Audit information'].map((s, i) => <div className="report-section-row" key={s}><span>{i < 7 ? <Check size={14} /> : '○'}</span>{s}<ChevronRight size={14} /></div>)}<div className="aside-note"><Info size={15} /><span>Prototype report<br /><b>Rule references require department configuration.</b></span></div></aside></div></div> }
 
-export default function NiyamAIApp({ initialView = 'overview' }: { initialView?: string }) { const [active, setActive] = useState(initialView); const [collapsed, setCollapsed] = useState(false); const [mobileOpen, setMobileOpen] = useState(false); const routeMap: Record<string, string> = { overview: '/dashboard', inspection: '/inspection', capture: '/capture', package: '/package', extraction: '/extraction', analysis: '/analysis', result: '/result', evidence: '/evidence', report: '/report', history: '/history', product: '/products', manufacturer: '/manufacturers', risk: '/risk', commerce: '/commerce', rules: '/rules', analytics: '/analytics', profile: '/profile' }; const go = (v: string) => { setActive(v); setMobileOpen(false); window.history.pushState({}, '', routeMap[v] || '/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }) }; let view: React.ReactNode; if (active === 'overview') view = <Dashboard go={go} />; else if (active === 'inspection') view = <InspectionView go={go} />; else if (active === 'capture') view = <CaptureView go={go} />; else if (active === 'package') view = <PackageView go={go} />; else if (active === 'extraction') view = <ExtractionView go={go} />; else if (active === 'analysis') view = <AnalysisView go={go} />; else if (active === 'result') view = <ResultView go={go} />; else if (active === 'report') view = <ReportView go={go} />; else view = <GenericModule view={active} go={go} />; return <div className="app-shell"><Sidebar active={active} setActive={go} collapsed={collapsed} setCollapsed={setCollapsed} /><div className={cn('main-shell', mobileOpen && 'mobile-open')}><Topbar onMenu={() => setMobileOpen(true)} /><main>{view}</main><div className="mobile-nav">{[['overview',LayoutDashboard,'Home'],['inspection',ScanLine,'Inspect'],['history',History,'History'],['evidence',Fingerprint,'Evidence'],['profile',UserRound,'Profile']].map(([v, Icon, label]) => <button className={active === v ? 'active' : ''} key={String(v)} onClick={() => go(String(v))}><Icon size={19} /><span>{label}</span></button>)}</div></div>{mobileOpen && <button className="mobile-overlay" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}</div> }
+export default function NiyamAIApp({ initialView = 'overview' }: { initialView?: string }) {
+  const { data: session } = useSession()              
+  const user = {                                        
+    name: session?.user?.name,
+    image: session?.user?.image,
+    role: session?.user?.role,
+  }
+  const [active, setActive] = useState(initialView)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  const routeMap: Record<string, string> = { overview: '/dashboard', inspection: '/inspection', capture: '/capture', package: '/package', extraction: '/extraction', analysis: '/analysis', result: '/result', evidence: '/evidence', report: '/report', history: '/history', product: '/products', manufacturer: '/manufacturers', risk: '/risk', commerce: '/commerce', rules: '/rules', analytics: '/analytics', profile: '/profile' }
+
+  const go = (v: string) => { setActive(v); setMobileOpen(false); window.history.pushState({}, '', routeMap[v] || '/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+
+  const handleLogout = async () => {
+    setLoggingOut(true)
+    await signOut({ callbackUrl: '/login', redirect: true })
+  }
+
+  let view: React.ReactNode
+  if (active === 'overview') view = <Dashboard go={go} />
+  else if (active === 'inspection') view = <InspectionView go={go} />
+  else if (active === 'capture') view = <CaptureView go={go} />
+  else if (active === 'package') view = <PackageView go={go} />
+  else if (active === 'extraction') view = <ExtractionView go={go} />
+  else if (active === 'analysis') view = <AnalysisView go={go} />
+  else if (active === 'result') view = <ResultView go={go} />
+  else if (active === 'report') view = <ReportView go={go} />
+  else view = <GenericModule view={active} go={go} />
+
+  return (
+    <div className="app-shell">
+      <Sidebar active={active} setActive={go} collapsed={collapsed} setCollapsed={setCollapsed} user={user} />
+      <div className={cn('main-shell', mobileOpen && 'mobile-open')}>
+        <Topbar onMenu={() => setMobileOpen(true)} onLogout={() => setShowLogoutModal(true)} user={user} />
+        <main>{view}</main>
+        <div className="mobile-nav">
+          {[['overview',LayoutDashboard,'Home'],['inspection',ScanLine,'Inspect'],['history',History,'History'],['evidence',Fingerprint,'Evidence'],['profile',UserRound,'Profile']].map(([v, Icon, label]) =>
+            <button className={active === v ? 'active' : ''} key={String(v)} onClick={() => go(String(v))}><Icon size={19} /><span>{label}</span></button>
+          )}
+        </div>
+      </div>
+      {mobileOpen && <button className="mobile-overlay" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
+
+      {showLogoutModal && (
+        <div className="logout-overlay" onClick={() => !loggingOut && setShowLogoutModal(false)}>
+          <div className="logout-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="logout-icon-wrap">
+              <LogOut size={26} />
+            </div>
+            <div className="logout-eyebrow">SECURE SESSION</div>
+            <h3 className="logout-title">Sign out of NiyamAI?</h3>
+            <p className="logout-desc">You will be redirected to the login page. All protected routes will require authentication again.</p>
+            <div className="logout-actions">
+              <button className="button secondary logout-cancel" onClick={() => setShowLogoutModal(false)} disabled={loggingOut}>
+                Cancel
+              </button>
+              <button className="button logout-confirm" onClick={handleLogout} disabled={loggingOut}>
+                <LogOut size={16} />
+                {loggingOut ? 'Signing out...' : 'Yes, sign out'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export { NiyamAIApp }

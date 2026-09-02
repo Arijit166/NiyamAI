@@ -1,0 +1,26 @@
+import { Schema, models, model } from 'mongoose'
+
+export type UserRole = 'admin' | 'executive_officer' | 'senior_officer'
+export type AuthProvider = 'credentials' | 'google'
+
+export interface IUser {
+  name: string
+  email: string
+  password?: string
+  image?: string
+  role: UserRole | null
+  authProvider: AuthProvider
+  createdAt: Date
+}
+
+const UserSchema = new Schema<IUser>({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, select: false },
+  image: { type: String },
+  role: { type: String, enum: ['admin', 'executive_officer', 'senior_officer'], default: null },
+  authProvider: { type: String, enum: ['credentials', 'google'], required: true },
+  createdAt: { type: Date, default: Date.now },
+})
+
+export default models.User || model<IUser>('User', UserSchema)
