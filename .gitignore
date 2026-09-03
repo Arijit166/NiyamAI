@@ -10,6 +10,8 @@ __v0_jsx-dev-runtime.ts
 .env*.local
 .env
 
+tmp/
+
 components.json
 package-lock.json
 pnpm-lock.yaml

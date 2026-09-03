@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { connectDB } from '../lib/mongodb'
 import RuleChunk from '../models/RuleChunk'
 import { VECTOR_INDEX_NAME } from '../lib/rag/vectorStore'
