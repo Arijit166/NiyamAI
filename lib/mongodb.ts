@@ -1,22 +1,23 @@
 import mongoose from 'mongoose'
 
-const MONGODB_URI = process.env.MONGODB_URI as string
+const MONGODB_URI = process.env.MONGODB_URI
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable in .env')
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongooseConn: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null } | undefined
 }
 
-let cached = (global as any).mongoose
-
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null }
-}
+const cached = global._mongooseConn ?? (global._mongooseConn = { conn: null, promise: null })
 
 export async function connectDB() {
   if (cached.conn) return cached.conn
 
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI is not set. Add it to your .env.local before calling connectDB().')
+  }
+
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, { bufferCommands: false }).then((m) => m)
+    cached.promise = mongoose.connect(MONGODB_URI)
   }
 
   cached.conn = await cached.promise

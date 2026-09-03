@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import type { ProductDeclaration, ComplianceResult } from '@/lib/rules/types'
 import { signOut } from 'next-auth/react'
 import {
   Activity,
@@ -178,9 +179,323 @@ function PackageView({ go }: { go: (v: string) => void }) { return <div classNam
 
 function ExtractionView({ go }: { go: (v: string) => void }) { return <div className="page-content"><div className="page-heading"><div><div className="eyebrow">WORKFLOW / 04 • HUMAN-IN-THE-LOOP</div><h1>Declaration extraction</h1><p>Review AI-extracted information before compliance evaluation.</p></div><Badge tone="purple"><BrainCircuit size={13} /> AI extraction complete</Badge></div><div className="extraction-layout"><section className="panel evidence-image"><div className="image-toolbar"><span><Eye size={15} /> Evidence crop / front_surface.jpg</span><Badge tone="cyan">OCR overlay on</Badge></div><div className="label-photo"><div className="fake-label"><small>XYZ FOODS</small><h2>PREMIUM<br />BISCUITS</h2><div className="fake-seal">₹50</div><p>Net Quantity: 500 g</p><p>Made for everyday moments</p></div><span className="ocr-box ocr-mrp">MRP ₹50 <b>98%</b></span><span className="ocr-box ocr-qty">Net Qty 500g <b>96%</b></span><span className="ocr-box ocr-date">Packed: 08/2026 <b>92%</b></span></div><div className="evidence-caption"><Fingerprint size={15} /> EV-2026-019283 <span>•</span> SHA-256 verified</div></section><section className="panel declaration-form"><div className="eyebrow">STRUCTURED DECLARATIONS</div><h3>Officer verification</h3>{[['Product name','XYZ Premium Biscuits','99% confidence'],['Manufacturer','ABC Foods Pvt Ltd','94% confidence'],['Net quantity','500 g','96% confidence'],['MRP','₹50','98% confidence'],['Packed on','08/2026','92% confidence'],['Consumer care','Not detected','Below threshold']].map(([label, value, confidence]) => <div className={cn('declaration-field', confidence === 'Below threshold' && 'field-warning')} key={label}><label>{label}<span className={confidence === 'Below threshold' ? 'low-confidence' : ''}>{confidence}</span></label><div><input value={value} readOnly /><button className="edit-button">{confidence === 'Below threshold' ? 'Review' : 'Edit'}</button></div></div>)}<div className="human-note"><UserRound size={15} /><span><b>Human verification required</b>AI suggestions are never final findings.</span></div><button className="button primary full" onClick={() => go('analysis')}>Confirm & run compliance check <ArrowRight size={16} /></button></section></div></div> }
 
-function AnalysisView({ go }: { go: (v: string) => void }) { const [running, setRunning] = useState(false); return <div className="page-content analysis-page"><div className="page-heading center-heading"><div><div className="eyebrow"><span className="pulse" /> RULE ENGINE / PROCESSING</div><h1>Running compliance analysis</h1><p>AI extracts. Deterministic rules validate. You decide.</p></div></div><div className="analysis-layout"><section className="panel pipeline-panel"><div className="pipeline-head"><div><div className="eyebrow cyan-text">ANALYSIS PIPELINE</div><h3>Evidence to finding</h3></div><span className="analysis-percent">86%</span></div><div className="pipeline-progress"><i /></div><div className="pipeline-list">{[['Image quality','Complete','green'],['Package surface analysis','Complete','green'],['OCR extraction','Complete','green'],['Declaration classification','Complete','green'],['Rule version identification','Processing','cyan'],['Legal compliance check','Processing','cyan'],['Font & readability analysis','Waiting','muted'],['Evidence mapping','Waiting','muted']].map(([label,status,tone], i) => <div className={cn('pipeline-row', tone === 'cyan' && 'processing')} key={label}><span className={`pipeline-icon ${tone}`}>{tone === 'green' ? <Check size={14} /> : tone === 'cyan' ? <span className="spinner" /> : '○'}</span><span>{label}</span><b>{status}</b><small>0{i + 1}</small></div>)}</div></section><aside className="panel engine-panel"><div className="engine-title"><span className="ai-orb"><BrainCircuit size={20} /></span><div><div className="eyebrow purple-text">AI + RULE ENGINE</div><h3>Explainable compliance</h3></div></div><div className="engine-flow">{['Computer vision','OCR extraction','Structured data','Legal rule engine','Compliance result'].map((s, i) => <div key={s}><span>{i + 1}</span>{s}{i < 4 && <ArrowRight size={14} />}</div>)}</div><div className="engine-disclaimer"><Info size={15} /><p>AI identifies declarations. The configured rule engine performs the validation — not a generative model.</p></div><button className="button primary full" onClick={() => { setRunning(true); setTimeout(() => go('result'), 650) }}>{running ? 'Finalizing analysis...' : 'View compliance result'} <ArrowRight size={16} /></button></aside></div></div> }
+function AnalysisView({
+  go,
+  declaration,
+  onResult,
+}: {
+  go: (v: string) => void
+  declaration: ProductDeclaration
+  onResult: (result: ComplianceResult) => void
+}) {
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-function ResultView({ go }: { go: (v: string) => void }) { return <div className="page-content"><div className="page-heading"><div><div className="eyebrow">INSPECTION RESULT / INS-2026-00126</div><h1>Compliance result</h1><p>XYZ Premium Biscuits • ABC Foods Pvt Ltd</p></div><div className="heading-actions"><button className="button secondary" onClick={() => go('evidence')}><Eye size={16} /> View evidence</button><button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button></div></div><div className="result-overview"><section className="panel score-panel"><div className="score-ring"><div><strong>68</strong><small>/ 100</small></div></div><div><Badge tone="amber">REVIEW REQUIRED</Badge><h3>Human verification needed</h3><p>3 findings require officer review before this case can be finalized.</p></div><div className="score-meta"><span>AI confidence <b>94.8%</b></span><span>Rule set <b>PC Rules • Prototype</b></span></div></section><section className="panel breakdown-panel"><div className="eyebrow">SCORE BREAKDOWN</div><h3>What shaped this score?</h3>{[['Mandatory declarations',72,'cyan'],['Format compliance',81,'blue'],['Readability',59,'amber'],['Font analysis',63,'red'],['Data consistency',74,'purple']].map(([label, value, tone]) => <div className="breakdown-row" key={String(label)}><div><span>{label}</span><b>{value}%</b></div><div className="breakdown-bar"><i className={String(tone)} style={{ width: `${value}%` }} /></div></div>)}</section></div><div className="section-heading"><div><div className="eyebrow red-text"><AlertTriangle size={13} /> FINDINGS</div><h2>Explainable violations</h2></div><Badge tone="muted">3 findings • 2 need review</Badge></div><div className="violation-grid">{[['CRITICAL','Consumer care information','Required declaration was not detected across analyzed package surfaces.','96%','red'],['REVIEW REQUIRED','Net quantity readability','Text detected but readability / size requires officer verification.','87%','amber'],['REVIEW REQUIRED','MRP placement','Declaration detected; placement requires manual confirmation.','81%','amber']].map(([tag,title,desc,conf,tone]) => <div className={`violation-card ${tone}`} key={title}><div className="violation-top"><Badge tone={tone === 'red' ? 'red' : 'amber'}>{tag}</Badge><span>{conf} confidence</span></div><h3>{title}</h3><p>{desc}</p><button className="text-button" onClick={() => go('evidence')}>View visual evidence <ArrowRight size={14} /></button></div>)}</div></div> }
+  const runAnalysis = async () => {
+    setRunning(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/compliance/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(declaration),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || `Request failed with status ${res.status}`)
+      }
+      const result: ComplianceResult = await res.json()
+      onResult(result)
+      go('result')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Compliance analysis failed. Please try again.')
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div className="page-content analysis-page">
+      <div className="page-heading center-heading">
+        <div>
+          <div className="eyebrow"><span className="pulse" /> RULE ENGINE / PROCESSING</div>
+          <h1>Running compliance analysis</h1>
+          <p>AI extracts. Deterministic rules validate. You decide.</p>
+        </div>
+      </div>
+      <div className="analysis-layout">
+        <section className="panel pipeline-panel">
+          <div className="pipeline-head">
+            <div>
+              <div className="eyebrow cyan-text">ANALYSIS PIPELINE</div>
+              <h3>Evidence to finding</h3>
+            </div>
+            <span className="analysis-percent">86%</span>
+          </div>
+          <div className="pipeline-progress"><i /></div>
+          <div className="pipeline-list">
+            {[
+              ['Image quality', 'Complete', 'green'],
+              ['Package surface analysis', 'Complete', 'green'],
+              ['OCR extraction', 'Complete', 'green'],
+              ['Declaration classification', 'Complete', 'green'],
+              ['Rule version identification', 'Processing', 'cyan'],
+              ['Legal compliance check', 'Processing', 'cyan'],
+              ['Font & readability analysis', 'Waiting', 'muted'],
+              ['Evidence mapping', 'Waiting', 'muted'],
+            ].map(([label, status, tone], i) => (
+              <div className={cn('pipeline-row', tone === 'cyan' && 'processing')} key={label}>
+                <span className={`pipeline-icon ${tone}`}>
+                  {tone === 'green' ? <Check size={14} /> : tone === 'cyan' ? <span className="spinner" /> : '○'}
+                </span>
+                <span>{label}</span>
+                <b>{status}</b>
+                <small>0{i + 1}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+        <aside className="panel engine-panel">
+          <div className="engine-title">
+            <span className="ai-orb"><BrainCircuit size={20} /></span>
+            <div>
+              <div className="eyebrow purple-text">AI + RULE ENGINE</div>
+              <h3>Explainable compliance</h3>
+            </div>
+          </div>
+          <div className="engine-flow">
+            {['Computer vision', 'OCR extraction', 'Structured data', 'Legal rule engine', 'Compliance result'].map((s, i) => (
+              <div key={s}>
+                <span>{i + 1}</span>{s}{i < 4 && <ArrowRight size={14} />}
+              </div>
+            ))}
+          </div>
+          <div className="engine-disclaimer">
+            <Info size={15} />
+            <p>AI identifies declarations. The configured rule engine performs the validation — not a generative model.</p>
+          </div>
+          {error && (
+            <div className="engine-disclaimer" style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+              <AlertTriangle size={15} />
+              <p>{error}</p>
+            </div>
+          )}
+          <button className="button primary full" onClick={runAnalysis} disabled={running}>
+            {running ? 'Finalizing analysis...' : 'View compliance result'} <ArrowRight size={16} />
+          </button>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+function ResultView({ go, result: initialResult }: { go: (v: string) => void; result: ComplianceResult | null }) {
+  const sample100Result: ComplianceResult = {
+    score: 100,
+    status: 'COMPLIANT',
+    breakdown: [
+      { label: 'Mandatory declarations' as any, value: 100 },
+      { label: 'Format compliance' as any, value: 100 },
+      { label: 'Readability' as any, value: 100 },
+      { label: 'Font analysis' as any, value: 100 },
+      { label: 'Data consistency' as any, value: 100 },
+    ],
+    violations: [],
+    checks: [],
+  }
+
+  const sample68Result: ComplianceResult = {
+    score: 68,
+    status: 'REVIEW REQUIRED',
+    breakdown: [
+      { label: 'Mandatory declarations' as any, value: 72 },
+      { label: 'Format compliance' as any, value: 81 },
+      { label: 'Readability' as any, value: 59 },
+      { label: 'Font analysis' as any, value: 63 },
+      { label: 'Data consistency' as any, value: 74 },
+    ],
+    violations: [
+      {
+        category: 'Mandatory declarations',
+        tag: 'CRITICAL',
+        title: 'Consumer care information',
+        description: 'Required declaration was not detected across analyzed package surfaces.',
+        confidence: '96%',
+        legalBasis: [{ ruleRefs: ['PCR Rule 6(1)'], snippet: '', page: 12, sourceFile: '' }],
+      },
+      {
+        category: 'Readability',
+        tag: 'REVIEW REQUIRED',
+        title: 'Net quantity readability',
+        description: 'Text detected but readability / size requires officer verification.',
+        confidence: '87%',
+        legalBasis: [{ ruleRefs: ['PCR Rule 9'], snippet: '', page: 18, sourceFile: '' }],
+      },
+      {
+        category: 'Format compliance',
+        tag: 'REVIEW REQUIRED',
+        title: 'MRP placement',
+        description: 'Declaration detected; placement requires manual confirmation.',
+        confidence: '81%',
+        legalBasis: [{ ruleRefs: ['PCR Rule 8'], snippet: '', page: 15, sourceFile: '' }],
+      },
+    ],
+    checks: [],
+  }
+
+  const [activeResult, setActiveResult] = useState<ComplianceResult>(initialResult || sample100Result)
+
+  useEffect(() => {
+    if (initialResult) {
+      setActiveResult(initialResult)
+    }
+  }, [initialResult])
+
+  const result = activeResult
+  const score = Math.min(100, Math.max(0, result.score))
+  const is100 = score === 100
+  const statusTone = result.status === 'COMPLIANT' ? 'green' : result.status === 'NON-COMPLIANT' ? 'red' : 'amber'
+  const reviewCount = result.violations.filter((v) => v.tag === 'REVIEW REQUIRED').length
+
+  const ringColor = score >= 90 ? '#22c55e' : score >= 60 ? '#f59e0b' : '#ef4444'
+  const ringGlow = is100
+    ? '0 0 35px rgba(34, 197, 94, 0.75), inset 0 0 18px rgba(34, 197, 94, 0.4)'
+    : score >= 80
+    ? `0 0 16px ${ringColor}44`
+    : 'none'
+
+  return (
+    <div className="page-content">
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">INSPECTION RESULT</div>
+          <h1>Compliance result</h1>
+        </div>
+        <div className="heading-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className={cn('button', is100 ? 'primary' : 'secondary')}
+            onClick={() => setActiveResult(sample100Result)}
+            title="Test 100/100 full glowing score"
+          >
+            <Sparkles size={15} /> 100/100 Full Score
+          </button>
+          <button
+            className={cn('button', !is100 ? 'primary' : 'secondary')}
+            onClick={() => setActiveResult(sample68Result)}
+            title="Test 68/100 partial score"
+          >
+            <AlertTriangle size={15} /> 68/100 Review Score
+          </button>
+          <button className="button secondary" onClick={() => go('evidence')}><Eye size={16} /> View evidence</button>
+          <button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button>
+        </div>
+      </div>
+      <div className="result-overview">
+        <section className="panel score-panel">
+          <div
+            className="score-ring"
+            style={{
+              background: `conic-gradient(${ringColor} 0deg ${score * 3.6}deg, #1c2838 ${score * 3.6}deg 360deg)`,
+              boxShadow: ringGlow,
+              transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <div>
+              <strong style={{ color: is100 ? '#4ade80' : 'inherit', textShadow: is100 ? '0 0 14px rgba(74, 222, 128, 0.7)' : 'none' }}>
+                {score}
+              </strong>
+              <small>/ 100</small>
+            </div>
+          </div>
+          <div>
+            <Badge tone={statusTone}>{result.status}</Badge>
+            <h3>{result.status === 'COMPLIANT' ? '100% Compliant — No issues found' : 'Human verification needed'}</h3>
+            <p>
+              {result.violations.length === 0
+                ? 'All mandatory Legal Metrology rules satisfied across analyzed package surfaces.'
+                : `${result.violations.length} finding${result.violations.length === 1 ? '' : 's'} require officer review before this case can be finalized.`}
+            </p>
+          </div>
+        </section>
+        <section className="panel breakdown-panel">
+          <div className="eyebrow">SCORE BREAKDOWN</div>
+          <h3>What shaped this score?</h3>
+          {result.breakdown.map(({ label, value }) => {
+            const isLineFull = value === 100
+            return (
+              <div className="breakdown-row" key={label}>
+                <div>
+                  <span>{label}</span>
+                  <b style={{ color: isLineFull ? '#4ade80' : undefined, textShadow: isLineFull ? '0 0 8px rgba(74, 222, 128, 0.5)' : 'none' }}>
+                    {value}%
+                  </b>
+                </div>
+                <div className="breakdown-bar" style={{ background: '#192638', height: '7px', borderRadius: '7px', overflow: 'hidden' }}>
+                  <i
+                    style={{
+                      display: 'block',
+                      height: '100%',
+                      width: `${value}%`,
+                      background: isLineFull
+                        ? 'linear-gradient(90deg, #10b981 0%, #34d399 50%, #6ee7b7 100%)'
+                        : value >= 80
+                        ? 'linear-gradient(90deg, #06b6d4, #22d3ee)'
+                        : value >= 60
+                        ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                        : 'linear-gradient(90deg, #ef4444, #f87171)',
+                      boxShadow: isLineFull
+                        ? '0 0 16px rgba(52, 211, 153, 0.95), 0 0 6px #10b981'
+                        : value >= 80
+                        ? '0 0 8px rgba(34, 211, 238, 0.5)'
+                        : 'none',
+                      borderRadius: '7px',
+                      transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.5s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </section>
+      </div>
+      <div className="section-heading">
+        <div>
+          <div className="eyebrow red-text"><AlertTriangle size={13} /> FINDINGS</div>
+          <h2>Explainable violations</h2>
+        </div>
+        <Badge tone={result.violations.length === 0 ? 'green' : 'muted'}>
+          {result.violations.length === 0 ? '0 violations detected' : `${result.violations.length} findings • ${reviewCount} need review`}
+        </Badge>
+      </div>
+      {result.violations.length === 0 ? (
+        <div className="panel" style={{ padding: '24px', textAlign: 'center', color: '#6ee7b7', background: '#0e1e1b', border: '1px solid #164e3d' }}>
+          <Check size={28} style={{ margin: '0 auto 8px', display: 'block', color: '#34d399' }} />
+          <h3 style={{ margin: '0 0 4px', fontSize: '16px', color: '#ecfdf5' }}>Fully Compliant</h3>
+          <p style={{ margin: 0, fontSize: '11px', color: '#a7f3d0' }}>No legal metrology violations detected on package declarations.</p>
+        </div>
+      ) : (
+        <div className="violation-grid">
+          {result.violations.map((v) => (
+            <div className={`violation-card ${v.tag === 'CRITICAL' ? 'red' : 'amber'}`} key={v.title}>
+              <div className="violation-top">
+                <Badge tone={v.tag === 'CRITICAL' ? 'red' : 'amber'}>{v.tag}</Badge>
+                <span>{v.confidence} confidence</span>
+              </div>
+              <h3>{v.title}</h3>
+              <p>{v.description}</p>
+              {v.legalBasis[0] && (
+                <small style={{ display: 'block', opacity: 0.7 }}>
+                  {v.legalBasis[0].ruleRefs.join(', ')} • p.{v.legalBasis[0].page}
+                </small>
+              )}
+              <button className="text-button" onClick={() => go('evidence')}>View visual evidence <ArrowRight size={14} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function GenericModule({ view, go }: { view: string; go: (v: string) => void }) { const config: Record<string, { eyebrow: string; title: string; desc: string; icon: React.ElementType }> = { evidence: { eyebrow: 'SECURE AUDIT / 184 RECORDS', title: 'Evidence vault', desc: 'Cryptographically verified evidence linked to every inspection finding.', icon: Fingerprint }, product: { eyebrow: 'PRODUCT INTELLIGENCE / 2,481 PRODUCTS', title: 'Product intelligence', desc: 'Trace packaging declarations, inspection history and risk over time.', icon: Box }, manufacturer: { eyebrow: 'ENTITY INTELLIGENCE / 428 MANUFACTURERS', title: 'Manufacturer intelligence', desc: 'Identify repeat patterns and prioritize the next inspection target.', icon: UsersRound }, risk: { eyebrow: 'PREDICTIVE MODEL / PROTOTYPE METRICS', title: 'Predictive enforcement intelligence', desc: 'Identify where enforcement resources should be deployed next.', icon: Radar }, commerce: { eyebrow: 'DIGITAL MARKETPLACE / MONITOR', title: 'Digital marketplace inspector', desc: 'Compare online listings against physical package declarations.', icon: Globe2 }, rules: { eyebrow: 'RULE MANAGEMENT / PROTOTYPE', title: 'Legal rule intelligence', desc: 'Manage configured validation logic and versioned declaration requirements.', icon: FileCheck2 }, analytics: { eyebrow: 'DEMO DATA / LAST SYNC 4 MIN AGO', title: 'Compliance analytics', desc: 'See trends, regional signals and repeat offender distribution at a glance.', icon: BarChart3 }, history: { eyebrow: 'CASE REPOSITORY / 12,540 INSPECTIONS', title: 'Inspection repository', desc: 'Search, filter and review the complete inspection record.', icon: History } }; const c = config[view] || config.product; const Icon = c.icon; return <div className="page-content"><div className="page-heading"><div><div className="eyebrow"><Icon size={13} /> {c.eyebrow}</div><h1>{c.title}</h1><p>{c.desc}</p></div><button className="button primary" onClick={() => go(view === 'history' ? 'inspection' : 'inspection')}><ScanLine size={16} /> Start inspection</button></div><div className="module-toolbar panel"><div className="search-box module-search"><Search size={16} /><input placeholder="Search product, barcode, manufacturer, inspection ID..." /></div><button className="button secondary"><SlidersHorizontal size={16} /> Filters</button><button className="button secondary"><Download size={16} /> Export</button></div><div className="module-cards"><div className="panel module-hero"><div className="module-icon"><Icon size={23} /></div><div><Badge tone={view === 'risk' ? 'purple' : 'cyan'}>{view === 'risk' ? 'MODEL ACTIVE' : 'DEMO DATA'}</Badge><h2>{view === 'risk' ? 'Priority inspection targets' : view === 'evidence' ? 'Integrity verified across all evidence' : 'The signal behind every decision'}</h2><p>Designed for officer confidence: every data point links back to an inspection, a package surface, and a verifiable evidence record.</p><button className="text-button" onClick={() => go('capture')}>Open guided workflow <ArrowRight size={14} /></button></div></div><div className="panel mini-metric"><span>Open cases</span><strong>{view === 'risk' ? '827' : '1,248'}</strong><Badge tone="amber">Needs review</Badge></div><div className="panel mini-metric"><span>Verified records</span><strong>{view === 'evidence' ? '184' : '94.8%'}</strong><Badge tone="green">↑ Healthy</Badge></div></div>{view === 'history' || view === 'manufacturer' ? <section className="panel feed-panel"><div className="panel-head"><div><div className="eyebrow">CASE DATA</div><h3>{view === 'history' ? 'Inspection repository' : 'Priority manufacturers'}</h3></div><button className="filter-button">Updated today <ChevronRight size={14} /></button></div><InspectionTable rows={inspections} go={go} /></section> : <div className="empty-state panel"><div className="empty-icon"><Icon size={25} /></div><h3>Intelligence module ready</h3><p>Connect this prototype surface to your backend data source when your SIH architecture is finalized.</p><button className="button secondary" onClick={() => go('overview')}>Back to command center</button></div>}</div> }
 
@@ -198,6 +513,15 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null)
+  const [declaration, setDeclaration] = useState<ProductDeclaration>({
+    product_name: 'XYZ Premium Biscuits',
+    net_quantity: { value: 500, unit: 'g', font_height_mm: 1.2, principal_display_panel_area_cm2: 120 },
+    mrp: { amount: 50, currency: '₹' },
+    manufacturer: 'ABC Foods Pvt Ltd, Kolkata, West Bengal, 700012',
+    packed_date: '08/2026',
+    consumer_care: '1800-123-4567, care@abcfoods.com'
+  })
 
   const routeMap: Record<string, string> = { overview: '/dashboard', inspection: '/inspection', capture: '/capture', package: '/package', extraction: '/extraction', analysis: '/analysis', result: '/result', evidence: '/evidence', report: '/report', history: '/history', product: '/products', manufacturer: '/manufacturers', risk: '/risk', commerce: '/commerce', rules: '/rules', analytics: '/analytics', profile: '/profile' }
 
@@ -214,8 +538,8 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   else if (active === 'capture') view = <CaptureView go={go} />
   else if (active === 'package') view = <PackageView go={go} />
   else if (active === 'extraction') view = <ExtractionView go={go} />
-  else if (active === 'analysis') view = <AnalysisView go={go} />
-  else if (active === 'result') view = <ResultView go={go} />
+  else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={setComplianceResult} />
+  else if (active === 'result') view = <ResultView go={go} result={complianceResult} />
   else if (active === 'report') view = <ReportView go={go} />
   else view = <GenericModule view={active} go={go} />
 
@@ -226,9 +550,15 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
         <Topbar onMenu={() => setMobileOpen(true)} onLogout={() => setShowLogoutModal(true)} user={user} />
         <main>{view}</main>
         <div className="mobile-nav">
-          {[['overview',LayoutDashboard,'Home'],['inspection',ScanLine,'Inspect'],['history',History,'History'],['evidence',Fingerprint,'Evidence'],['profile',UserRound,'Profile']].map(([v, Icon, label]) =>
-            <button className={active === v ? 'active' : ''} key={String(v)} onClick={() => go(String(v))}><Icon size={19} /><span>{label}</span></button>
-          )}
+          {([
+            ['overview', LayoutDashboard, 'Home'],
+            ['inspection', ScanLine, 'Inspect'],
+            ['history', History, 'History'],
+            ['evidence', Fingerprint, 'Evidence'],
+            ['profile', UserRound, 'Profile'],
+          ] as [string, React.ElementType, string][]).map(([v, Icon, label]) => (
+            <button className={active === v ? 'active' : ''} key={v} onClick={() => go(v)}><Icon size={19} /><span>{label}</span></button>
+          ))}
         </div>
       </div>
       {mobileOpen && <button className="mobile-overlay" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
