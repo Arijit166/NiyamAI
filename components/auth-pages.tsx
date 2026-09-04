@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { ScanLine, ShieldCheck, ArrowRight, LockKeyhole, UserPlus, AlertCircle } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const ROLES = [
   { value: 'senior_officer', label: 'Senior Officer' },
@@ -14,8 +15,8 @@ const ROLES = [
 const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: 'Invalid email or password.',
   UseCredentials: 'This email is registered with a password. Please sign in with email and password.',
-  NoAccount: 'No account found with this email. Please sign up first.',        // add
-  AccountExists: 'An account with this email already exists. Please log in instead.', // add
+  NoAccount: 'No account found with this email. Please sign up first.',
+  AccountExists: 'An account with this email already exists. Please log in instead.',
 }
 
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
@@ -44,9 +45,9 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
   const [loading, setLoading] = useState(false)
 
   const handleGoogle = () => {
-  document.cookie = `auth_intent=${signup ? 'signup' : 'login'}; path=/; max-age=300; samesite=lax`
-  signIn('google', { callbackUrl: '/' })
-}
+    document.cookie = `auth_intent=${signup ? 'signup' : 'login'}; path=/; max-age=300; samesite=lax`
+    signIn('google', { callbackUrl: '/' })
+  }
 
   const handleSubmit = async () => {
     setError('')
@@ -109,7 +110,10 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
 
       <section className="auth-panel">
         <div className="auth-card">
-          <div className="eyebrow">AUTHORIZED ACCESS</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div className="eyebrow">AUTHORIZED ACCESS</div>
+            <ThemeToggle />
+          </div>
           <h2>{signup ? 'Create officer account' : 'Welcome back, Officer.'}</h2>
           <p>{signup ? 'Set up your secure enforcement workspace.' : 'Sign in to your enforcement intelligence workspace.'}</p>
 
@@ -127,7 +131,7 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter secure password" />
             {signup && (
               <small style={{ display: 'block', color: '#64748b', fontSize: '11px', marginTop: '4px' }}>
-                Must be 8+ chars with uppercase, lowercase, number & special char (@, #, $, etc.)
+                Must be 8+ chars with uppercase, lowercase, number & special character (@, #, $, etc.)
               </small>
             )}
           </label>

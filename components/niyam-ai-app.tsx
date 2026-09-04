@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
 import type { ProductDeclaration, ComplianceResult } from '@/lib/rules/types'
 import { signOut } from 'next-auth/react'
@@ -37,6 +38,8 @@ import {
   Radar,
   Search,
   ScanLine,
+  Sun,
+  Moon,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
@@ -100,6 +103,29 @@ function Logo() {
   return <div className="brand-mark"><ScanLine size={20} strokeWidth={2.5} /><span>Niyam<span>AI</span></span></div>
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  const isDark = theme === 'dark'
+
+  return (
+    <button
+      className="icon-button theme-toggle"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? <Sun size={18} /> : <Moon size={18} />}
+    </button>
+  )
+}
 function Badge({ children, tone = 'cyan' }: { children: React.ReactNode; tone?: 'cyan' | 'green' | 'amber' | 'red' | 'purple' | 'muted' }) {
   return <span className={cn('badge', `badge-${tone}`)}>{children}</span>
 }
@@ -120,7 +146,7 @@ function Topbar({ onMenu, onLogout, user }: {
   return <header className="topbar">
     <button className="mobile-menu icon-button" onClick={onMenu} aria-label="Open navigation"><Menu size={20} /></button>
     <div className="search-box"><Search size={17} /><input placeholder="Search inspections, products, evidence..." /><kbd>⌘ K</kbd></div>
-    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><button className="icon-button notification"><Bell size={18} /><b>3</b></button></div><div className="officer" onClick={onLogout} style={{ cursor: 'pointer' }} title="Click to sign out">
+    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><ThemeToggle /><button className="icon-button notification"><Bell size={18} /><b>3</b></button></div><div className="officer" onClick={onLogout} style={{ cursor: 'pointer' }} title="Click to sign out">
       <Avatar name={user.name} image={user.image} size={36} />
       <div>
         <strong>{user.name || 'Officer'}</strong>
