@@ -18,6 +18,7 @@
     "mongoose": "^9.9.4",
     "next": "16.3.3",
     "next-auth": "^4.24.15",
+    "next-themes": "^0.4.6",
     "react": "^19",
     "react-dom": "^19",
     "shadcn": "^4.11.0",
@@ -34,5 +35,10 @@
     "postcss": "^8.5",
     "tailwindcss": "^4.3.3",
     "typescript": "5.7.3"
+  },
+  "allowScripts": {
+    "sharp@0.35.4": true,
+    "sharp@0.32.6": true,
+    "protobufjs@6.11.6": true
   }
 }

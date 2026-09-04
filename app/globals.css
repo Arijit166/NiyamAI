@@ -305,3 +305,515 @@ button, input, select, textarea { font: inherit; } button { cursor: pointer; } b
   font-weight: 500;
   color: #94a3b8;
 }
+
+
+
+
+
+/* =========================================================
+   NIYAMAI THEME SYSTEM
+   Light/Dark mode + Glass UI
+   ========================================================= */
+
+/* ---------- Theme variables ---------- */
+
+:root {
+  --page-bg: #f4f8fb;
+  --page-bg-secondary: #eaf2f6;
+
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(35, 74, 98, 0.14);
+
+  --text-main: #102333;
+  --text-secondary: #526779;
+  --text-muted: #718496;
+
+  --surface-dark: rgba(255, 255, 255, 0.58);
+  --surface-hover: rgba(255, 255, 255, 0.82);
+
+  --shadow-glass:
+    0 18px 50px rgba(31, 65, 86, 0.10),
+    0 2px 8px rgba(31, 65, 86, 0.05);
+
+  --grid-color: rgba(34, 120, 145, 0.08);
+}
+
+html.dark {
+  --page-bg: #070b14;
+  --page-bg-secondary: #0a101c;
+
+  --glass-bg: rgba(14, 22, 36, 0.62);
+  --glass-bg-strong: rgba(16, 27, 44, 0.78);
+  --glass-border: rgba(93, 150, 177, 0.16);
+
+  --text-main: #e7edf7;
+  --text-secondary: #91a4ba;
+  --text-muted: #718198;
+
+  --surface-dark: rgba(14, 22, 36, 0.62);
+  --surface-hover: rgba(20, 34, 52, 0.82);
+
+  --shadow-glass:
+    0 20px 60px rgba(0, 0, 0, 0.28),
+    0 2px 10px rgba(0, 0, 0, 0.18);
+
+  --grid-color: rgba(45, 108, 133, 0.12);
+}
+
+
+/* ---------- Global background ---------- */
+
+html,
+body {
+  min-height: 100%;
+}
+
+html {
+  background: var(--page-bg);
+  color-scheme: light dark;
+}
+
+body {
+  position: relative;
+  background:
+    radial-gradient(
+      circle at 15% 15%,
+      rgba(34, 211, 238, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 85% 75%,
+      rgba(59, 130, 246, 0.07),
+      transparent 30%
+    ),
+    var(--page-bg);
+  color: var(--text-main);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+
+/* ---------- Subtle technical grid ---------- */
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+
+  background-size: 44px 44px;
+
+  mask-image:
+    radial-gradient(
+      ellipse at center,
+      black 0%,
+      transparent 78%
+    );
+}
+
+
+/* ---------- Make major shells transparent ---------- */
+
+.app-shell,
+.auth-page,
+.onboarding-page {
+  background: transparent !important;
+}
+
+
+/* ---------- Glass surfaces ---------- */
+
+.sidebar,
+.topbar,
+.stat-card,
+.panel,
+.hero-inspection,
+.workspace,
+.search-box,
+.form-panel,
+.workflow-aside,
+.assistant-panel,
+.reconstruction,
+.declarations,
+.declaration-form,
+.pipeline-panel,
+.engine-panel,
+.breakdown-panel,
+.score-panel,
+.violation-card,
+.module-hero,
+.mini-metric,
+.empty-state,
+.report-aside,
+.auth-visual,
+.auth-card,
+.onboarding-card {
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+
+/* ---------- Main dashboard surfaces ---------- */
+
+.stat-card,
+.panel {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-glass);
+
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.2s ease;
+}
+
+.stat-card:hover,
+.panel:hover {
+  background: var(--surface-hover);
+}
+
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  background: var(--glass-bg-strong);
+  border-right-color: var(--glass-border);
+
+  box-shadow:
+    10px 0 40px rgba(0, 0, 0, 0.08);
+}
+
+.workspace {
+  background: rgba(34, 211, 238, 0.055);
+  border-color: var(--glass-border);
+}
+
+
+/* ---------- Topbar ---------- */
+
+.topbar {
+  background: var(--glass-bg-strong);
+  border-bottom-color: var(--glass-border);
+}
+
+.search-box {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+}
+
+
+/* ---------- Buttons ---------- */
+
+.button.secondary,
+.button.ghost,
+.filter-button {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+}
+
+.button.secondary:hover,
+.button.ghost:hover,
+.filter-button:hover {
+  background: var(--surface-hover);
+}
+
+
+/* ---------- Hero ---------- */
+
+.hero-inspection {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(34, 211, 238, 0.08),
+      rgba(59, 130, 246, 0.04)
+    ),
+    var(--glass-bg-strong);
+
+  border-color: rgba(34, 211, 238, 0.20);
+  box-shadow: var(--shadow-glass);
+}
+
+
+/* ---------- Inputs ---------- */
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.declaration-field input,
+.auth-card input,
+.admin-passkey-group input,
+.module-search {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  color: var(--text-main);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.form-grid input::placeholder,
+.form-grid textarea::placeholder,
+.auth-card input::placeholder {
+  color: var(--text-muted);
+}
+
+
+/* ---------- Light theme text ---------- */
+
+html:not(.dark) .page-heading p,
+html:not(.dark) .hero-copy p,
+html:not(.dark) .auth-copy p,
+html:not(.dark) .module-hero p,
+html:not(.dark) .score-panel p {
+  color: #5c7181;
+}
+
+html:not(.dark) .page-heading h1,
+html:not(.dark) .stat-value,
+html:not(.dark) .panel h3,
+html:not(.dark) .stat-card h3 {
+  color: #102333;
+}
+
+
+/* ---------- Light theme sidebar ---------- */
+
+html:not(.dark) .brand-mark,
+html:not(.dark) .auth-brand {
+  color: #102333;
+}
+
+html:not(.dark) .nav-item {
+  color: #607486;
+}
+
+html:not(.dark) .nav-item:hover {
+  background: rgba(34, 211, 238, 0.08);
+  color: #18384a;
+}
+
+html:not(.dark) .nav-item.active {
+  background: rgba(34, 211, 238, 0.12);
+  color: #087c94;
+}
+
+html:not(.dark) .nav-section {
+  color: #8294a3;
+}
+
+
+/* ---------- Light theme cards ---------- */
+
+html:not(.dark) .stat-card,
+html:not(.dark) .panel {
+  color: #102333;
+}
+
+html:not(.dark) .recommendation,
+html:not(.dark) .declaration-list > div,
+html:not(.dark) .pipeline-row,
+html:not(.dark) .report-section-row {
+  border-color: rgba(35, 74, 98, 0.12);
+}
+
+html:not(.dark) .rec-main small,
+html:not(.dark) .stat-label,
+html:not(.dark) .eyebrow,
+html:not(.dark) .rank,
+html:not(.dark) .risk-score small {
+  color: #718496;
+}
+
+
+/* ---------- Light theme secondary controls ---------- */
+
+html:not(.dark) .collapse-button,
+html:not(.dark) .icon-button {
+  color: #607486;
+}
+
+html:not(.dark) .collapse-button:hover,
+html:not(.dark) .icon-button:hover {
+  color: #102333;
+  background: rgba(34, 211, 238, 0.10);
+}
+
+
+/* ---------- Auth pages ---------- */
+
+html:not(.dark) .auth-visual {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(34, 211, 238, 0.08),
+      rgba(255, 255, 255, 0.30)
+    ),
+    rgba(255, 255, 255, 0.55);
+
+  border-color: var(--glass-border);
+}
+
+html:not(.dark) .auth-card,
+html:not(.dark) .onboarding-card {
+  color: #102333;
+}
+
+html:not(.dark) .auth-card h2,
+html:not(.dark) .onboarding-card h1 {
+  color: #102333;
+}
+
+html:not(.dark) .auth-card > p,
+html:not(.dark) .auth-card > label,
+html:not(.dark) .auth-options,
+html:not(.dark) .auth-switch {
+  color: #607486;
+}
+
+
+/* ---------- Onboarding ---------- */
+
+html:not(.dark) .onboarding-card {
+  background: rgba(255, 255, 255, 0.70);
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-glass);
+}
+
+
+/* ---------- Mobile navigation ---------- */
+
+.mobile-nav {
+  background: var(--glass-bg-strong) !important;
+  border-color: var(--glass-border) !important;
+
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+
+/* ---------- Glass modal ---------- */
+
+.logout-modal {
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+
+
+/* ---------- Theme toggle ---------- */
+
+.theme-toggle {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 9999;
+
+  height: 38px;
+  padding: 0 12px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+
+  color: var(--text-main);
+
+  background: var(--glass-bg-strong);
+
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+  box-shadow: var(--shadow-glass);
+
+  font-size: 10px;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px);
+  background: var(--surface-hover);
+  border-color: rgba(34, 211, 238, 0.35);
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.12),
+    0 0 20px rgba(34, 211, 238, 0.10);
+}
+
+.theme-toggle svg {
+  color: var(--cyan);
+  flex-shrink: 0;
+}
+
+
+/* ---------- Smooth theme transitions ---------- */
+
+body,
+.app-shell,
+.sidebar,
+.topbar,
+.panel,
+.stat-card,
+.workspace,
+.search-box,
+.theme-toggle,
+.button.secondary,
+.button.ghost,
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.auth-card,
+.onboarding-card {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+
+/* ---------- Respect reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* ---------- Mobile theme toggle ---------- */
+
+@media (max-width: 800px) {
+  .theme-toggle {
+    top: 11px;
+    right: 12px;
+    height: 34px;
+    padding: 0 10px;
+  }
+
+  .theme-toggle span {
+    display: none;
+  }
+}

@@ -5,7 +5,8 @@ import { Providers } from '@/components/providers'
 
 export const metadata: Metadata = {
   title: 'NiyamAI | Enforcement Intelligence Command Center',
-  description: 'AI-powered Legal Metrology compliance and enforcement intelligence platform for field officers.',
+  description:
+    'AI-powered Legal Metrology compliance and enforcement intelligence platform for field officers.',
   generator: 'NiyamAI',
   icons: {
     icon: [
@@ -27,8 +28,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark',
-  themeColor: '#070B14',
+  colorScheme: 'light dark',
+  themeColor: '#0b1220',
   userScalable: false,
 }
 
@@ -38,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark bg-background">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <Providers>
           {children}
