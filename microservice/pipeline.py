@@ -47,11 +47,11 @@ import numpy as np
 
 from ocr import LabelOCRProcessor
 from preprocessing import preprocess_image
-import normalizer
-import validator
+import normalizer as normalizer
+import validator as validator
 import confidence as confidence_mod
 import field_extractor
-import json_builder
+import json_builder as json_builder
 
 
 class LabelExtractionPipeline:

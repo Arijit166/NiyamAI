@@ -2053,9 +2053,101 @@ tbody tr:hover {
   font-size: 9px;
 }
 
-.field-warning input {
-  border-color: #7b5721;
-  color: #edbd67;
+.field-warning {
+  background: #2a1f0f66;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-bottom: 1px solid #7b5721;
+}
+
+.field-warning label {
+  align-items: center;
+}
+
+.field-warning .low-confidence {
+  background: #f59e0b1c;
+  border: 1px solid #f59e0b48;
+  color: #f4c267;
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.field-editing {
+  background: #0d2a3366;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-bottom: 1px solid #1c5a6e;
+}
+
+.field-editing input {
+  border-color: var(--cyan);
+}
+
+.field-editing .field-actions {
+  margin-top: 10px;
+}
+
+.field-editing .field-actions .edit-button:first-child {
+  border-color: #22c55e55;
+  color: #6ce096;
+}
+
+.field-editing .field-actions .edit-button:last-child {
+  border-color: #64748b55;
+  color: var(--muted);
+}
+
+.field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.field-actions .edit-button {
+  position: static;           /* override the absolute positioning from .edit-button */
+  height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: .15s;
+}
+
+.field-actions .edit-button:hover {
+  background: var(--card);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.field-actions .edit-button:nth-child(2) {   /* "Type manually" */
+  border-color: #2563eb55;
+  color: #7fb2ff;
+}
+
+.field-actions .edit-button:nth-child(3),
+.field-actions .edit-button:last-child {     /* "Not applicable" */
+  border-color: #64748b55;
+  color: var(--muted);
+}
+
+.field-warning small {
+  display: block;
+  margin-top: 8px;
+  color: #efb55b;
+  font-size: 10px;
 }
 
 .human-note {

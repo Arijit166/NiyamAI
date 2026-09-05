@@ -877,12 +877,13 @@ class LabelOCRProcessor:
                 use_doc_orientation_classify=False,
                 use_doc_unwarping=False,
                 use_textline_orientation=use_angle_cls,
+                enable_mkldnn=False,
             )
         except Exception:
             try:
-                self.ocr = PaddleOCR(use_textline_orientation=use_angle_cls, lang=lang)
+                self.ocr = PaddleOCR(use_textline_orientation=use_angle_cls, lang=lang, enable_mkldnn=False)
             except Exception:
-                self.ocr = PaddleOCR(lang=lang)
+                self.ocr = PaddleOCR(lang=lang, enable_mkldnn=False)
 
         self.llm_corrector = LLMCorrector(model=llm_model)
 
