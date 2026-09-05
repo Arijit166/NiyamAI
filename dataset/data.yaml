@@ -1,6 +1,0 @@
-path: C:\Users\kritt\Downloads\niyamAI\dataset
-train: images/train
-val: images/val
-
-nc: 29
-names: ['manufacturer_name', 'manufacturer_address', 'packer_name', 'packer_address', 'importer_name', 'importer_address', 'country_of_origin', 'brand', 'product_name', 'net_quantity', 'mrp', 'manufacturing_date', 'expiry_date', 'consumer_care_name', 'consumer_care_address', 'consumer_care_phone', 'batch_number', 'lot_number', 'serial_number', 'dimensions', 'fssai_license', 'bis_mark', 'agmark', 'hallmark', 'barcode', 'qr_code', 'storage_instructions', 'usage_instructions', 'marketing_claims']
