@@ -40,3 +40,4 @@ run_no_yolo.py
 train_and_evaluate.py
 yolo_field_detector.py
 yolov8n.pt  
+runs/
