@@ -1,0 +1,13 @@
+# YOLO dataset configuration using dataset_raw for both train and val
+path: C:/Users/kritt/Downloads/niyamAI/dataset_raw
+train: .
+val: .
+
+nc: 6
+names:
+  0: brand
+  1: product_name
+  2: net_quantity
+  3: mrp
+  4: manufacturing_date
+  5: expiry_date

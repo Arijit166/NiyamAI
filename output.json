@@ -1,0 +1,1432 @@
+{
+  "metadata": {
+    "filename": "WhatsApp Image 2026-09-03 at 12.16.47 PM.jpeg",
+    "image_size": {
+      "width": 1201,
+      "height": 1600
+    },
+    "timestamp": "2026-09-04T20:33:39.862554+00:00",
+    "processing_time_sec": 45.1758
+  },
+  "metrics": {
+    "total_text_lines": 51,
+    "low_confidence_lines": 5,
+    "average_confidence": 0.8784,
+    "minimum_confidence": 0.3337,
+    "maximum_confidence": 0.997
+  },
+  "brand": "NIVEA",
+  "product_name": "Cocoa Nourish body lotion",
+  "raw_full_text": "The NIVEA\nCocoa Nourish body lotion\noffers 5In1 COMPLETE CARE\n1.\n48h moisturization\n2.\nDeep nourishment\n3.\nDryness protection\n4.\nSmooth skin feel\n5.Healthy looking skin\nBuilding on 100 years of skin care expertise.\nOur carepromise\nIngredients carefully selected accordingto\nstrict quality standards.\nSKIN LOTION.INGREDIENTS:AquaGlycerinC15-19 Alkane\nCetearylAlcohol,\nParaffinum Liquidum,\nIsopropy\nSodium Cetearyl Sulfate, Carbomer, Ethylhexylglycerin,\nButter,Dimethicone, Glyceryl Stearate, Phenoxyethanol,\nPalmitate, Glyceryl Stearate SE, ButyrospermumParkii\nTheobroma Cacao Seed Butter, Trisodium EDTA,Sodium\nCoumarinBHTParfum\nHydroxide, Tocopheryl Acetate, Linalool Benzyl Alcohol,\nAGH.Phoenix Market City,Kurla(W)Mumbai,\nMarketed byNIVEA India Pvt.Ltd.4th Floor,\nMaharashtra-400070.\nQuery/Feedback:Contact NIVEA\nCARE Executive at above address or OTHER\n022)62487999\n:care@beiersdorf.com www.NIVEA.com\nArt.-No.88411\n88411.981.AB.14\nnustrial EstateVilBoTa.SanandDist.\nManufactured byNIVEA India Pvt.Ltd.SM-9/1.Sanand\n=reg.tm.of Beiersdorf AG.Germany\nAhmedabad (Gujarat382110.Mfg.Lic.No.MGC/1212\nNet Content\n(when packed): 400ml\nMRP(incl.\n550\nof all taxes);\nUSP\n1133m\nBBaaehn\nB33235504\nMPO8\n8080013\nUse Before (U) U01/26",
+  "corrected_full_text": "The NIVEA\nCocoa Nourish body lotion\noffers 5in1 COMPLETE CARE\n1.\n48h moisturization\n2.\nDeep nourishment\n3.\nDryness protection\n4.\nSmooth skin feel\n5. Healthy looking skin\nBuilding on 100 years of skin care expertise.\nOur carepromise\nIngredients carefully selected accordingto\nstrict quality standards.\nSKIN LOTION.INGREDIENTS:AquaGlycerinC15-19 Alkane\nCetearylAlcohol,\nParaffinum Liquidum,\nIsopropy\nSodium Cetearyl Sulfate, Carbomer, Ethylhexylglycerin,\nButter,Dimethicone, Glyceryl Stearate, Phenoxyethanol,\nPalmitate, Glyceryl Stearate SE, ButyrospermumParkii\nTheobroma Cacao Seed Butter, Trisodium EDTA,Sodium\nCoumarinBHTParfum\nHydroxide, Tocopheryl Acetate, Linalool Benzyl Alcohol,\nAGH.Phoenix Market City,Kurla(W)Mumbai,\nMarketed byNIVEA India Pvt.Ltd.4th Floor,\nMaharashtra-400070.\nQuery/Feedback:Contact NIVEA\nCARE Executive at above address or OTHER\n022)62487999\n:care@beiersdorf.com www.NIVEA.com\nArt.-No.88411\n88411.981.AB.14\nnustrial EstateVilBoTa.SanandDist.\nManufactured byNIVEA India Pvt.Ltd.SM-9/1.Sanand\n=reg.tm.of Beiersdorf AG.Germany\nAhmedabad (Gujarat382110.Mfg.Lic.No.MGC/1212\nNet Content\n(when packed): 400ml\nMRP(incl.\n550\nof all taxes);\nUSP\n1133m\nBBaaehn\nB33235504\nMPO8\n8080013\nUse Before (U) U01/26",
+  "sections": [
+    "offers 5in1 COMPLETE CARE",
+    "1. 48h moisturization",
+    "2. Deep nourishment",
+    "3. Dryness protection",
+    "4. Smooth skin feel",
+    "5. Healthy looking skin",
+    "Building on 100 years of skin care expertise.",
+    "Our carepromise",
+    "Ingredients carefully selected accordingto strict quality standards.",
+    "SKIN LOTION.INGREDIENTS:AquaGlycerinC15-19 Alkane CetearylAlcohol, Paraffinum Liquidum, Isopropy Sodium Cetearyl Sulfate, Carbomer, Ethylhexylglycerin, Butter,Dimethicone, Glyceryl Stearate, Phenoxyethanol, Palmitate, Glyceryl Stearate SE, ButyrospermumParkii Theobroma Cacao Seed Butter, Trisodium EDTA,Sodium CoumarinBHTParfum Hydroxide, Tocopheryl Acetate, Linalool Benzyl Alcohol,"
+  ],
+  "structured_data": {
+    "batch_number": "UNKNOWN",
+    "consumer_care": "care@beiersdorf.com",
+    "country_of_origin": "UNKNOWN",
+    "expiry_date": "(U) U01/26",
+    "manufacturer": "=reg.tm.of Beiersdorf AG.Germany",
+    "manufacturer_address": "Ahmedabad (Gujarat382110.Mfg.Lic.No.MGC/1212 Net Content (when packed): 400ml",
+    "manufacturing_date": "UNKNOWN",
+    "marketer": "NIVEA India Pvt.Ltd.",
+    "mfg_license_no": "MGC/1212",
+    "mrp": "Rs. 550",
+    "net_quantity": "400 ml"
+  },
+  "corrections": [
+    {
+      "original": "offers 5In1 COMPLETE CARE",
+      "corrected": "offers 5in1 COMPLETE CARE",
+      "reason": "character misread",
+      "confidence": "high"
+    },
+    {
+      "original": "5.Healthy looking skin",
+      "corrected": "5. Healthy looking skin",
+      "reason": "spacing fix",
+      "confidence": "high"
+    }
+  ],
+  "field_sources": {
+    "batch_number": "none",
+    "consumer_care": "regex_label_proximity",
+    "country_of_origin": "none",
+    "expiry_date": "regex_label_proximity",
+    "manufacturer": "regex_label_proximity",
+    "manufacturer_address": "regex_label_proximity",
+    "manufacturing_date": "none",
+    "marketer": "llm_text_extraction",
+    "mfg_license_no": "llm_text_extraction",
+    "mrp": "ocr_spatial",
+    "net_quantity": "llm_text_extraction"
+  },
+  "uncertain_or_flagged_text": [
+    {
+      "ocr_text": "1133m",
+      "llm_text": null,
+      "confidence": 0.4215,
+      "reason": "Low OCR confidence; no correction available"
+    },
+    {
+      "ocr_text": "BBaaehn",
+      "llm_text": null,
+      "confidence": 0.5566,
+      "reason": "Low OCR confidence; no correction available"
+    },
+    {
+      "ocr_text": "B33235504",
+      "llm_text": null,
+      "confidence": 0.4739,
+      "reason": "Low OCR confidence; no correction available"
+    },
+    {
+      "ocr_text": "MPO8",
+      "llm_text": null,
+      "confidence": 0.3337,
+      "reason": "Low OCR confidence; no correction available"
+    },
+    {
+      "ocr_text": "8080013",
+      "llm_text": null,
+      "confidence": 0.4247,
+      "reason": "Low OCR confidence; no correction available"
+    },
+    {
+      "ocr_text": null,
+      "llm_text": null,
+      "field": "batch_number",
+      "reason": "Not detected anywhere in OCR text; not guessed"
+    },
+    {
+      "ocr_text": null,
+      "llm_text": null,
+      "field": "country_of_origin",
+      "reason": "Not detected anywhere in OCR text; not guessed"
+    },
+    {
+      "ocr_text": null,
+      "llm_text": null,
+      "field": "manufacturing_date",
+      "reason": "Not detected anywhere in OCR text; not guessed"
+    }
+  ],
+  "llm_correction_status": {
+    "applied": true,
+    "error": null
+  },
+  "detections": [
+    {
+      "bbox": [
+        [
+          557,
+          147
+        ],
+        [
+          687,
+          155
+        ],
+        [
+          685,
+          182
+        ],
+        [
+          556,
+          174
+        ]
+      ],
+      "raw_text": "The NIVEA",
+      "clean_text": "The NIVEA",
+      "confidence": 0.9527,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          491,
+          174
+        ],
+        [
+          751,
+          190
+        ],
+        [
+          750,
+          214
+        ],
+        [
+          489,
+          198
+        ]
+      ],
+      "raw_text": "Cocoa Nourish body lotion",
+      "clean_text": "Cocoa Nourish body lotion",
+      "confidence": 0.9591,
+      "low_confidence": false,
+      "word_count": 4
+    },
+    {
+      "bbox": [
+        [
+          478,
+          200
+        ],
+        [
+          759,
+          216
+        ],
+        [
+          758,
+          240
+        ],
+        [
+          477,
+          224
+        ]
+      ],
+      "raw_text": "offers 5In1 COMPLETE CARE",
+      "clean_text": "offers 5In1 COMPLETE CARE",
+      "confidence": 0.9112,
+      "low_confidence": false,
+      "word_count": 4
+    },
+    {
+      "bbox": [
+        [
+          503,
+          241
+        ],
+        [
+          537,
+          241
+        ],
+        [
+          537,
+          259
+        ],
+        [
+          503,
+          259
+        ]
+      ],
+      "raw_text": "1.",
+      "clean_text": "1.",
+      "confidence": 0.7858,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          533,
+          239
+        ],
+        [
+          720,
+          253
+        ],
+        [
+          718,
+          278
+        ],
+        [
+          531,
+          264
+        ]
+      ],
+      "raw_text": "48h moisturization",
+      "clean_text": "48h moisturization",
+      "confidence": 0.972,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          502,
+          268
+        ],
+        [
+          537,
+          268
+        ],
+        [
+          537,
+          288
+        ],
+        [
+          502,
+          288
+        ]
+      ],
+      "raw_text": "2.",
+      "clean_text": "2.",
+      "confidence": 0.8385,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          533,
+          269
+        ],
+        [
+          719,
+          283
+        ],
+        [
+          717,
+          308
+        ],
+        [
+          531,
+          294
+        ]
+      ],
+      "raw_text": "Deep nourishment",
+      "clean_text": "Deep nourishment",
+      "confidence": 0.9661,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          500,
+          296
+        ],
+        [
+          538,
+          296
+        ],
+        [
+          538,
+          319
+        ],
+        [
+          500,
+          319
+        ]
+      ],
+      "raw_text": "3.",
+      "clean_text": "3.",
+      "confidence": 0.9877,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          532,
+          298
+        ],
+        [
+          720,
+          312
+        ],
+        [
+          718,
+          337
+        ],
+        [
+          530,
+          323
+        ]
+      ],
+      "raw_text": "Dryness protection",
+      "clean_text": "Dryness protection",
+      "confidence": 0.9857,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          501,
+          326
+        ],
+        [
+          537,
+          326
+        ],
+        [
+          537,
+          346
+        ],
+        [
+          501,
+          346
+        ]
+      ],
+      "raw_text": "4.",
+      "clean_text": "4.",
+      "confidence": 0.6694,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          529,
+          325
+        ],
+        [
+          693,
+          339
+        ],
+        [
+          691,
+          363
+        ],
+        [
+          527,
+          349
+        ]
+      ],
+      "raw_text": "Smooth skin feel",
+      "clean_text": "Smooth skin feel",
+      "confidence": 0.9622,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          496,
+          349
+        ],
+        [
+          728,
+          367
+        ],
+        [
+          725,
+          397
+        ],
+        [
+          494,
+          379
+        ]
+      ],
+      "raw_text": "5.Healthy looking skin",
+      "clean_text": "5.Healthy looking skin",
+      "confidence": 0.9307,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          400,
+          423
+        ],
+        [
+          791,
+          451
+        ],
+        [
+          789,
+          478
+        ],
+        [
+          398,
+          450
+        ]
+      ],
+      "raw_text": "Building on 100 years of skin care expertise.",
+      "clean_text": "Building on 100 years of skin care expertise.",
+      "confidence": 0.9556,
+      "low_confidence": false,
+      "word_count": 8
+    },
+    {
+      "bbox": [
+        [
+          501,
+          389
+        ],
+        [
+          721,
+          408
+        ],
+        [
+          718,
+          443
+        ],
+        [
+          498,
+          424
+        ]
+      ],
+      "raw_text": "Our carepromise",
+      "clean_text": "Our carepromise",
+      "confidence": 0.985,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          397,
+          472
+        ],
+        [
+          782,
+          498
+        ],
+        [
+          780,
+          520
+        ],
+        [
+          396,
+          495
+        ]
+      ],
+      "raw_text": "Ingredients carefully selected accordingto",
+      "clean_text": "Ingredients carefully selected accordingto",
+      "confidence": 0.9753,
+      "low_confidence": false,
+      "word_count": 4
+    },
+    {
+      "bbox": [
+        [
+          397,
+          497
+        ],
+        [
+          606,
+          511
+        ],
+        [
+          605,
+          531
+        ],
+        [
+          396,
+          517
+        ]
+      ],
+      "raw_text": "strict quality standards.",
+      "clean_text": "strict quality standards.",
+      "confidence": 0.9614,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          394,
+          531
+        ],
+        [
+          806,
+          556
+        ],
+        [
+          805,
+          580
+        ],
+        [
+          393,
+          555
+        ]
+      ],
+      "raw_text": "SKIN LOTION.INGREDIENTS:AquaGlycerinC15-19 Alkane",
+      "clean_text": "SKIN LOTION.INGREDIENTS:AquaGlycerinC15-19 Alkane",
+      "confidence": 0.8705,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          396,
+          554
+        ],
+        [
+          553,
+          563
+        ],
+        [
+          552,
+          581
+        ],
+        [
+          395,
+          572
+        ]
+      ],
+      "raw_text": "CetearylAlcohol,",
+      "clean_text": "CetearylAlcohol,",
+      "confidence": 0.9527,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          545,
+          564
+        ],
+        [
+          739,
+          576
+        ],
+        [
+          738,
+          594
+        ],
+        [
+          544,
+          582
+        ]
+      ],
+      "raw_text": "Paraffinum Liquidum,",
+      "clean_text": "Paraffinum Liquidum,",
+      "confidence": 0.9434,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          735,
+          576
+        ],
+        [
+          803,
+          580
+        ],
+        [
+          802,
+          598
+        ],
+        [
+          733,
+          594
+        ]
+      ],
+      "raw_text": "Isopropy",
+      "clean_text": "Isopropy",
+      "confidence": 0.9946,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          391,
+          611
+        ],
+        [
+          801,
+          637
+        ],
+        [
+          800,
+          657
+        ],
+        [
+          390,
+          631
+        ]
+      ],
+      "raw_text": "Sodium Cetearyl Sulfate, Carbomer, Ethylhexylglycerin,",
+      "clean_text": "Sodium Cetearyl Sulfate, Carbomer, Ethylhexylglycerin,",
+      "confidence": 0.948,
+      "low_confidence": false,
+      "word_count": 5
+    },
+    {
+      "bbox": [
+        [
+          392,
+          592
+        ],
+        [
+          802,
+          618
+        ],
+        [
+          801,
+          638
+        ],
+        [
+          391,
+          612
+        ]
+      ],
+      "raw_text": "Butter,Dimethicone, Glyceryl Stearate, Phenoxyethanol,",
+      "clean_text": "Butter,Dimethicone, Glyceryl Stearate, Phenoxyethanol,",
+      "confidence": 0.9426,
+      "low_confidence": false,
+      "word_count": 4
+    },
+    {
+      "bbox": [
+        [
+          393,
+          571
+        ],
+        [
+          806,
+          596
+        ],
+        [
+          805,
+          619
+        ],
+        [
+          392,
+          594
+        ]
+      ],
+      "raw_text": "Palmitate, Glyceryl Stearate SE, ButyrospermumParkii",
+      "clean_text": "Palmitate, Glyceryl Stearate SE, ButyrospermumParkii",
+      "confidence": 0.9384,
+      "low_confidence": false,
+      "word_count": 5
+    },
+    {
+      "bbox": [
+        [
+          388,
+          632
+        ],
+        [
+          800,
+          656
+        ],
+        [
+          799,
+          675
+        ],
+        [
+          387,
+          651
+        ]
+      ],
+      "raw_text": "Theobroma Cacao Seed Butter, Trisodium EDTA,Sodium",
+      "clean_text": "Theobroma Cacao Seed Butter, Trisodium EDTA,Sodium",
+      "confidence": 0.9395,
+      "low_confidence": false,
+      "word_count": 6
+    },
+    {
+      "bbox": [
+        [
+          388,
+          669
+        ],
+        [
+          558,
+          680
+        ],
+        [
+          557,
+          701
+        ],
+        [
+          387,
+          690
+        ]
+      ],
+      "raw_text": "CoumarinBHTParfum",
+      "clean_text": "CoumarinBHTParfum",
+      "confidence": 0.9132,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          390,
+          652
+        ],
+        [
+          798,
+          675
+        ],
+        [
+          797,
+          695
+        ],
+        [
+          389,
+          672
+        ]
+      ],
+      "raw_text": "Hydroxide, Tocopheryl Acetate, Linalool Benzyl Alcohol,",
+      "clean_text": "Hydroxide, Tocopheryl Acetate, Linalool Benzyl Alcohol,",
+      "confidence": 0.9319,
+      "low_confidence": false,
+      "word_count": 6
+    },
+    {
+      "bbox": [
+        [
+          384,
+          735
+        ],
+        [
+          789,
+          762
+        ],
+        [
+          787,
+          792
+        ],
+        [
+          382,
+          765
+        ]
+      ],
+      "raw_text": "AGH.Phoenix Market City,Kurla(W)Mumbai,",
+      "clean_text": "AGH.Phoenix Market City,Kurla(W)Mumbai,",
+      "confidence": 0.9082,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          384,
+          703
+        ],
+        [
+          776,
+          726
+        ],
+        [
+          774,
+          757
+        ],
+        [
+          383,
+          734
+        ]
+      ],
+      "raw_text": "Marketed byNIVEA India Pvt.Ltd.4th Floor,",
+      "clean_text": "Marketed byNIVEA India Pvt.Ltd.4th Floor,",
+      "confidence": 0.9356,
+      "low_confidence": false,
+      "word_count": 5
+    },
+    {
+      "bbox": [
+        [
+          380,
+          768
+        ],
+        [
+          583,
+          778
+        ],
+        [
+          582,
+          806
+        ],
+        [
+          379,
+          796
+        ]
+      ],
+      "raw_text": "Maharashtra-400070.",
+      "clean_text": "Maharashtra-400070.",
+      "confidence": 0.9811,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          380,
+          801
+        ],
+        [
+          692,
+          816
+        ],
+        [
+          690,
+          844
+        ],
+        [
+          379,
+          829
+        ]
+      ],
+      "raw_text": "Query/Feedback:Contact NIVEA",
+      "clean_text": "Query/Feedback:Contact NIVEA",
+      "confidence": 0.9699,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          378,
+          830
+        ],
+        [
+          788,
+          830
+        ],
+        [
+          788,
+          881
+        ],
+        [
+          378,
+          881
+        ]
+      ],
+      "raw_text": "CARE Executive at above address or OTHER",
+      "clean_text": "CARE Executive at above address or OTHER",
+      "confidence": 0.9781,
+      "low_confidence": false,
+      "word_count": 7
+    },
+    {
+      "bbox": [
+        [
+          378,
+          863
+        ],
+        [
+          582,
+          871
+        ],
+        [
+          581,
+          903
+        ],
+        [
+          377,
+          895
+        ]
+      ],
+      "raw_text": "022)62487999",
+      "clean_text": "022)62487999",
+      "confidence": 0.9627,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          376,
+          896
+        ],
+        [
+          787,
+          896
+        ],
+        [
+          787,
+          946
+        ],
+        [
+          376,
+          946
+        ]
+      ],
+      "raw_text": ":care@beiersdorf.com www.NIVEA.com",
+      "clean_text": ":care@beiersdorf.com www.NIVEA.com",
+      "confidence": 0.9346,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          689,
+          939
+        ],
+        [
+          785,
+          943
+        ],
+        [
+          785,
+          960
+        ],
+        [
+          688,
+          956
+        ]
+      ],
+      "raw_text": "Art.-No.88411",
+      "clean_text": "Art.-No.88411",
+      "confidence": 0.969,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          673,
+          956
+        ],
+        [
+          784,
+          962
+        ],
+        [
+          783,
+          979
+        ],
+        [
+          672,
+          973
+        ]
+      ],
+      "raw_text": "88411.981.AB.14",
+      "clean_text": "88411.981.AB.14",
+      "confidence": 0.9744,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          461,
+          988
+        ],
+        [
+          671,
+          998
+        ],
+        [
+          670,
+          1015
+        ],
+        [
+          460,
+          1005
+        ]
+      ],
+      "raw_text": " nustrial EstateVilBoTa.SanandDist.",
+      "clean_text": "nustrial EstateVilBoTa.SanandDist.",
+      "confidence": 0.7243,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          462,
+          971
+        ],
+        [
+          721,
+          984
+        ],
+        [
+          720,
+          1002
+        ],
+        [
+          461,
+          989
+        ]
+      ],
+      "raw_text": "Manufactured byNIVEA India Pvt.Ltd.SM-9/1.Sanand",
+      "clean_text": "Manufactured byNIVEA India Pvt.Ltd.SM-9/1.Sanand",
+      "confidence": 0.922,
+      "low_confidence": false,
+      "word_count": 4
+    },
+    {
+      "bbox": [
+        [
+          459,
+          1020
+        ],
+        [
+          716,
+          1034
+        ],
+        [
+          715,
+          1052
+        ],
+        [
+          458,
+          1038
+        ]
+      ],
+      "raw_text": "=reg.tm.of Beiersdorf AG.Germany",
+      "clean_text": "=reg.tm.of Beiersdorf AG.Germany",
+      "confidence": 0.9496,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          460,
+          1004
+        ],
+        [
+          717,
+          1017
+        ],
+        [
+          716,
+          1035
+        ],
+        [
+          459,
+          1022
+        ]
+      ],
+      "raw_text": "Ahmedabad (Gujarat382110.Mfg.Lic.No.MGC/1212",
+      "clean_text": "Ahmedabad (Gujarat382110.Mfg.Lic.No.MGC/1212",
+      "confidence": 0.9713,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          457,
+          1052
+        ],
+        [
+          590,
+          1063
+        ],
+        [
+          588,
+          1091
+        ],
+        [
+          455,
+          1080
+        ]
+      ],
+      "raw_text": "Net Content",
+      "clean_text": "Net Content",
+      "confidence": 0.9629,
+      "low_confidence": false,
+      "word_count": 2
+    },
+    {
+      "bbox": [
+        [
+          455,
+          1076
+        ],
+        [
+          737,
+          1076
+        ],
+        [
+          737,
+          1122
+        ],
+        [
+          455,
+          1122
+        ]
+      ],
+      "raw_text": "(when packed): 400ml",
+      "clean_text": "(when packed): 400ml",
+      "confidence": 0.9675,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          368,
+          1114
+        ],
+        [
+          480,
+          1127
+        ],
+        [
+          476,
+          1160
+        ],
+        [
+          364,
+          1147
+        ]
+      ],
+      "raw_text": "MRP(incl.",
+      "clean_text": "MRP(incl.",
+      "confidence": 0.8987,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          542,
+          1148
+        ],
+        [
+          614,
+          1151
+        ],
+        [
+          612,
+          1181
+        ],
+        [
+          541,
+          1178
+        ]
+      ],
+      "raw_text": "550",
+      "clean_text": "550",
+      "confidence": 0.997,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          364,
+          1147
+        ],
+        [
+          480,
+          1161
+        ],
+        [
+          476,
+          1193
+        ],
+        [
+          360,
+          1179
+        ]
+      ],
+      "raw_text": "of all taxes);",
+      "clean_text": "of all taxes);",
+      "confidence": 0.8709,
+      "low_confidence": false,
+      "word_count": 3
+    },
+    {
+      "bbox": [
+        [
+          361,
+          1181
+        ],
+        [
+          406,
+          1181
+        ],
+        [
+          406,
+          1215
+        ],
+        [
+          361,
+          1215
+        ]
+      ],
+      "raw_text": "USP",
+      "clean_text": "USP",
+      "confidence": 0.6286,
+      "low_confidence": false,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          543,
+          1180
+        ],
+        [
+          652,
+          1185
+        ],
+        [
+          651,
+          1214
+        ],
+        [
+          542,
+          1209
+        ]
+      ],
+      "raw_text": "1133m",
+      "clean_text": "1133m",
+      "confidence": 0.4215,
+      "low_confidence": true,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          361,
+          1211
+        ],
+        [
+          456,
+          1224
+        ],
+        [
+          451,
+          1257
+        ],
+        [
+          356,
+          1244
+        ]
+      ],
+      "raw_text": "BBaaehn",
+      "clean_text": "BBaaehn",
+      "confidence": 0.5566,
+      "low_confidence": true,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          541,
+          1212
+        ],
+        [
+          713,
+          1218
+        ],
+        [
+          712,
+          1249
+        ],
+        [
+          540,
+          1243
+        ]
+      ],
+      "raw_text": "B33235504",
+      "clean_text": "B33235504",
+      "confidence": 0.4739,
+      "low_confidence": true,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          361,
+          1243
+        ],
+        [
+          466,
+          1259
+        ],
+        [
+          461,
+          1293
+        ],
+        [
+          356,
+          1277
+        ]
+      ],
+      "raw_text": "MPO8",
+      "clean_text": "MPO8",
+      "confidence": 0.3337,
+      "low_confidence": true,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          540,
+          1245
+        ],
+        [
+          710,
+          1250
+        ],
+        [
+          709,
+          1279
+        ],
+        [
+          539,
+          1274
+        ]
+      ],
+      "raw_text": "8080013",
+      "clean_text": "8080013",
+      "confidence": 0.4247,
+      "low_confidence": true,
+      "word_count": 1
+    },
+    {
+      "bbox": [
+        [
+          355,
+          1277
+        ],
+        [
+          632,
+          1277
+        ],
+        [
+          632,
+          1331
+        ],
+        [
+          355,
+          1331
+        ]
+      ],
+      "raw_text": "Use Before (U) U01/26",
+      "clean_text": "Use Before (U) U01/26",
+      "confidence": 0.9076,
+      "low_confidence": false,
+      "word_count": 4
+    }
+  ],
+  "quality_report": {
+    "quality": {
+      "resolution": {
+        "width": 1201,
+        "height": 1600
+      },
+      "blur_score": 373.12,
+      "brightness": 132.42,
+      "contrast": 57.78,
+      "noise_sigma": 1.48,
+      "skew_angle_deg": 0.0,
+      "is_too_blurry": false,
+      "is_too_small": false
+    },
+    "steps_applied": [
+      "smart_sharpen"
+    ],
+    "reject": false,
+    "reject_reason": null
+  },
+  "postprocess_flags": [
+    {
+      "field": "expiry_date",
+      "original_value": "(U) U01/26",
+      "reason": "could not parse a valid expiry date"
+    }
+  ]
+}
