@@ -31,6 +31,12 @@ const FIELD_LABELS: Record<string, string> = {
   country_of_origin: 'Country of origin',
   mfg_license_no: 'Mfg. license no.',
   ingredients: 'Ingredients',
+  product_name: 'Product name',
+  // NEW: needed by the rule engine's font-height (Table-I) check. The
+  // OCR/DL layer doesn't extract these yet, so they'll usually come in
+  // "missing" and the officer resolves them like any other missing field.
+  font_height_mm: 'Numeral / letter height (mm)',
+  principal_display_panel_area_cm2: 'Principal Display Panel area (cm²)',
 }
 
 export type FieldRecord = {
@@ -402,11 +408,13 @@ function MissingFieldResolver({ inspectionId, name, onResolved }: { inspectionId
   </div>
 }
 
-function ExtractionView({ go, inspectionId, fields, setFields }: {
+function ExtractionView({ go, inspectionId, fields, setFields, isImported, setIsImported }: {
   go: (v: string) => void
   inspectionId: string | null
   fields: Record<string, FieldRecord>
   setFields: (f: Record<string, FieldRecord>) => void
+  isImported: boolean
+  setIsImported: (v: boolean) => void
 }) {
   const entries = Object.entries(fields)
   const missingCount = entries.filter(([, f]) => f.status === 'missing').length
@@ -460,7 +468,15 @@ function ExtractionView({ go, inspectionId, fields, setFields }: {
           </div>
         </div>
       })}
-      <div className="human-note"><UserRound size={15} /><span><b>Human verification required</b>AI suggestions are never final findings.</span></div>
+      <div className="human-note"><UserRound size={15} /><span><b>Human verification required</b>  AI suggestions are never final findings.</span></div>
+      {/* NEW: explicit imported-product toggle. Country-of-origin presence
+          alone was too fragile a signal for is_imported (a domestic label
+          can legitimately mention a raw-material origin), so this is a
+          direct officer decision instead of an inferred heuristic. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0', fontSize: 13 }}>
+        <input type="checkbox" checked={isImported} onChange={(e) => setIsImported(e.target.checked)} />
+        This is an imported product (requires country of origin under Rule 6)
+      </label>
       <button className="button primary full" onClick={() => go('analysis')} disabled={missingCount > 0}>
         {missingCount > 0 ? `Resolve ${missingCount} field(s) to continue` : 'Confirm & run compliance check'} <ArrowRight size={16} />
       </button>
@@ -491,10 +507,10 @@ function AnalysisView({ go, declaration, onResult }: { go: (v: string) => void; 
   return <div className="page-content analysis-page">
     <div className="page-heading center-heading"><div><div className="eyebrow"><span className="pulse" /> RULE ENGINE / PROCESSING</div><h1>Running compliance analysis</h1><p>AI extracts. Deterministic rules validate. You decide.</p></div></div>
     <ProgressSteps active={3} />
-    <div className="analysis-layout">
-      <aside className="panel engine-panel" style={{ marginTop: 20 }}>
+    <div className="analysis-layout" style={{ display: 'flex', justifyContent: 'center' }}>
+      <aside className="panel engine-panel" style={{ marginTop: 20, maxWidth: 560, width: '100%' }}>
         <div className="engine-title"><span className="ai-orb"><BrainCircuit size={20} /></span><div><div className="eyebrow purple-text">AI + RULE ENGINE</div><h3>Explainable compliance</h3></div></div>
-        <div className="engine-disclaimer"><Info size={15} /><p>AI identifies declarations. The configured rule engine performs the validation — not a generative model.</p></div>
+        <div className="engine-disclaimer"><Info size={15} /><p>AI identifies declarations. The configured rule engine performs the validation — not a generative model. It also resolves which dated rule version applies to this product before checking it.</p></div>
         {error && <div className="engine-disclaimer" style={{ borderColor: '#ef4444', color: '#ef4444' }}><AlertTriangle size={15} /><p>{error}</p></div>}
         <button className="button primary full" onClick={runAnalysis} disabled={running}>{running ? 'Finalizing analysis...' : 'View compliance result'} <ArrowRight size={16} /></button>
       </aside>
@@ -502,14 +518,73 @@ function AnalysisView({ go, declaration, onResult }: { go: (v: string) => void; 
   </div>
 }
 
-function ResultView({ go, result }: { go: (v: string) => void; result: ComplianceResult | null }) {
+// ---------------------------------------------------------------------------
+// RESULT — now also exposes: which dated rule version was applied (and why),
+// a PDF export of this exact result, and a disabled "Pass to Risk
+// Intelligence" placeholder (per your note, that module comes later).
+// ---------------------------------------------------------------------------
+function ResultView({ go, result, declaration, inspectionMeta }: {
+  go: (v: string) => void
+  result: ComplianceResult | null
+  declaration: ProductDeclaration
+  inspectionMeta: { inspectionId?: string; premisesName?: string; location?: string; inspectionType?: string }
+}) {
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  const exportPdf = async () => {
+    if (!result) return
+    setExporting(true)
+    setExportError(null)
+    try {
+      const res = await fetch('/api/report/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...inspectionMeta, declaration, result }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'PDF export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inspection-${inspectionMeta.inspectionId || 'report'}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : 'PDF export failed.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!result) {
     return <div className="page-content"><div className="empty-state panel"><h3>No result yet</h3><p>Run a compliance analysis first.</p><button className="button secondary" onClick={() => go('inspection')}>Start an inspection</button></div></div>
   }
   const score = Math.min(100, Math.max(0, result.score))
   const statusTone = result.status === 'COMPLIANT' ? 'green' : result.status === 'NON-COMPLIANT' ? 'red' : 'amber'
   return <div className="page-content">
-    <div className="page-heading"><div><div className="eyebrow">INSPECTION RESULT</div><h1>Compliance result</h1></div><div className="heading-actions"><button className="button secondary" onClick={() => go('evidence')}><Eye size={16} /> View evidence</button><button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button></div></div>
+    <div className="page-heading">
+      <div><div className="eyebrow">INSPECTION RESULT</div><h1>Compliance result</h1></div>
+      <div className="heading-actions">
+        <button className="button secondary" onClick={() => go('evidence')}><Eye size={16} /> View evidence</button>
+        <button className="button secondary" onClick={exportPdf} disabled={exporting}><Download size={16} /> {exporting ? 'Exporting...' : 'Export PDF'}</button>
+        {/* Placeholder only — wire this up when Risk Intelligence exists. */}
+        <button className="button ghost" disabled title="Coming soon"><Radar size={16} /> Pass to Risk Intelligence</button>
+        <button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button>
+      </div>
+    </div>
+    {exportError && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 10 }}>{exportError}</p>}
+    {result.appliedRuleVersion && (
+      <div className="panel" style={{ padding: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <ShieldCheck size={16} />
+        <div>
+          <strong style={{ display: 'block', fontSize: 13 }}>{result.appliedRuleVersion.label}</strong>
+          <small style={{ color: '#64748b' }}>{result.appliedRuleVersion.reason}</small>
+        </div>
+      </div>
+    )}
     <div className="result-overview">
       <section className="panel score-panel"><div className="score-ring"><div><strong>{score}</strong><small>/ 100</small></div></div><div><Badge tone={statusTone}>{result.status}</Badge><p>{result.violations.length === 0 ? 'All mandatory Legal Metrology rules satisfied.' : `${result.violations.length} finding(s) require officer review.`}</p></div></section>
     </div>
@@ -535,11 +610,27 @@ function GenericModule({ view, go }: { view: string; go: (v: string) => void }) 
   </div>
 }
 
-// ReportView now takes the actual "save everything to the DB" handler as a
-// prop from NiyamAIApp instead of referencing outer-scope variables that
-// don't exist at module level (that was the source of the earlier error).
-function ReportView({ go, onSave, saving }: { go: (v: string) => void; onSave: () => void; saving: boolean }) {
-  return <div className="page-content"><div className="page-heading"><div><div className="eyebrow">CASE CLOSURE</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div><div className="heading-actions"><button className="button secondary"><Download size={16} /> Generate PDF</button><button className="button primary" onClick={onSave} disabled={saving}><ShieldCheck size={16} /> {saving ? 'Saving...' : 'Save case'}</button></div></div></div>
+// ReportView now also wires "Generate PDF" to the same export handler as
+// ResultView (passed down as a prop), so the officer can export from either
+// screen without duplicating the fetch/download logic.
+function ReportView({ go, onSave, saving, onExportPdf, exporting, saveError }: {
+  go: (v: string) => void
+  onSave: () => void
+  saving: boolean
+  onExportPdf: () => void
+  exporting: boolean
+  saveError: string | null
+}) {
+  return <div className="page-content">
+    <div className="page-heading">
+      <div><div className="eyebrow">CASE CLOSURE</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div>
+      <div className="heading-actions">
+        <button className="button secondary" onClick={onExportPdf} disabled={exporting}><Download size={16} /> {exporting ? 'Generating...' : 'Generate PDF'}</button>
+        <button className="button primary" onClick={onSave} disabled={saving}><ShieldCheck size={16} /> {saving ? 'Saving...' : 'Save case'}</button>
+      </div>
+    </div>
+    {saveError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{saveError}</p>}
+  </div>
 }
 
 export default function NiyamAIApp({ initialView = 'overview' }: { initialView?: string }) {
@@ -558,37 +649,135 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [inspectionDraft, setInspectionDraft] = useState<InspectionDraft | null>(null)
   const [inspectionId, setInspectionId] = useState<string | null>(null)
   const [fields, setFields] = useState<Record<string, FieldRecord>>({})
+  const [isImported, setIsImported] = useState(false)
   const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null)
   const [savingCase, setSavingCase] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
+
+  const MANDATORY_FIELD_KEYS = ['product_name', 'net_quantity', 'mrp', 'manufacturer', 'manufacturing_date', 'consumer_care']
+
+  const handleExtracted = (raw: Record<string, FieldRecord>) => {
+    const withDefaults = { ...raw }
+    for (const key of MANDATORY_FIELD_KEYS) {
+      if (!withDefaults[key]) {
+        withDefaults[key] = { value: null, confidence: 0, status: 'missing', reason: 'Not returned by extraction service' }
+      }
+    }
+    setFields(withDefaults)
+  }
 
   const go = (v: string) => { setActive(v); setMobileOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-  // Builds the ProductDeclaration shape the existing rule engine expects
-  // out of whatever's currently resolved in `fields` (extracted or manual).
+  // Normalizes common OCR unit spellings ("gm", "gms", "ltr"...) onto the
+  // canonical units the rule engine's VALID_UNITS list actually recognises.
+  const normalizeUnit = (raw: string) => {
+    const map: Record<string, string> = {
+      gm: 'g', gms: 'g', gram: 'g', grams: 'g',
+      kg: 'kg', kgs: 'kg',
+      ml: 'ml',
+      l: 'l', ltr: 'l', litre: 'l', litres: 'l', liter: 'l', liters: 'l',
+    }
+    return map[raw.toLowerCase()] || raw.toLowerCase()
+  }
+
+  const parseNum = (v?: string | number | null): number | undefined => {
+    if (v === null || v === undefined || v === '') return undefined
+    const s = typeof v === 'number' ? String(v) : String(v)
+    const match = s.match(/\d+(\.\d+)?/)
+    const n = match ? Number(match[0]) : NaN
+    return Number.isFinite(n) && n > 0 ? n : undefined
+  }
+
+  // Builds the ProductDeclaration shape the rule engine expects out of
+  // whatever's currently resolved in `fields` (extracted or manual).
+  //
+  // IMPORTANT FIX: previously this hardcoded `product_name` to 'Unknown
+  // product' and font_height_mm/principal_display_panel_area_cm2 to `0`.
+  // That silently made the mandatory-presence check always pass even when
+  // the product name was genuinely missing, and made the font-height check
+  // always fail (0mm is always < the minimum). Missing values are now left
+  // `undefined` so the rule engine treats them as actually missing/unknown,
+  // exactly like the ExtractionView "missing field" resolver already does
+  // for every other declaration.
+  const netQtyRaw = fields.net_quantity?.value || ''
+  const unitMatch = /([a-zA-Z]+)\s*$/.exec(netQtyRaw.trim())
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const declaration: ProductDeclaration = {
-    product_name: fields.product_name?.value || 'Unknown product',
-    net_quantity: { value: Number(fields.net_quantity?.value?.replace(/[^\d.]/g, '')) || 0, unit: 'g', font_height_mm: 0, principal_display_panel_area_cm2: 0 },
-    mrp: { amount: Number(fields.mrp?.value?.replace(/[^\d.]/g, '')) || 0, currency: '₹' },
-    manufacturer: fields.manufacturer?.value || '',
-    packed_date: fields.manufacturing_date?.value || '',
-    consumer_care: fields.consumer_care?.value || '',
-  } as ProductDeclaration
+    product_name: fields.product_name?.value || undefined,
+    net_quantity: {
+      value: parseNum(netQtyRaw) || 0,
+      unit: normalizeUnit(unitMatch?.[1] || 'g'),
+      font_height_mm: parseNum(fields.font_height_mm?.value),
+      principal_display_panel_area_cm2: parseNum(fields.principal_display_panel_area_cm2?.value),
+    },
+    mrp: { amount: parseNum(fields.mrp?.value) || 0, currency: '₹' },
+    manufacturer: fields.manufacturer?.value || undefined,
+    packed_date: fields.manufacturing_date?.value || undefined,
+    consumer_care: fields.consumer_care?.value || undefined,
+    country_of_origin: fields.country_of_origin?.value || undefined,
+    is_imported: isImported,
+  }
+
+  const inspectionMeta = {
+    inspectionId: inspectionId || undefined,
+    premisesName: inspectionDraft?.premisesName,
+    location: inspectionDraft?.location?.address,
+    inspectionType: inspectionDraft?.inspectionType,
+  }
+
+  // Shared PDF export handler — used by both ResultView and ReportView so
+  // there's exactly one place that talks to /api/report/pdf.
+  const exportPdf = async () => {
+    if (!complianceResult) return
+    setExportingPdf(true)
+    try {
+      const res = await fetch('/api/report/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...inspectionMeta, declaration, result: complianceResult }),
+      })
+      if (!res.ok) throw new Error('PDF export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inspection-${inspectionMeta.inspectionId || 'report'}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
 
   const handleLogout = async () => { setLoggingOut(true); await signOut({ callbackUrl: '/login', redirect: true }) }
 
   // The single point where the inspection actually gets persisted — only
   // once the officer has been through inspection details, capture,
   // extraction, analysis and result, and explicitly clicks "Save case".
+  // Now also sends the resolved `declaration` snapshot alongside `fields`,
+  // so history/PDF re-export later doesn't have to re-derive it.
   const handleSaveCase = async () => {
     if (!inspectionDraft) return
     setSavingCase(true)
+    setSaveError(null)
     try {
-      await fetch('/api/inspections', {
+      const res = await fetch('/api/inspections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...inspectionDraft, fields, complianceResult }),
+        body: JSON.stringify({ ...inspectionDraft, fields, declaration, complianceResult }),
       })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || `Save failed with status ${res.status}`)
+      }
       go('history')
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save inspection.')
     } finally {
       setSavingCase(false)
     }
@@ -597,11 +786,11 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   let view: React.ReactNode
   if (active === 'overview') view = <Dashboard go={go} />
   else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => { setInspectionDraft(draft); setInspectionId(crypto.randomUUID()) }} />
-  else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={setFields} />
-  else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} />
+  else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={handleExtracted} />
+  else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} isImported={isImported} setIsImported={setIsImported} />
   else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={setComplianceResult} />
-  else if (active === 'result') view = <ResultView go={go} result={complianceResult} />
-  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} />
+  else if (active === 'result') view = <ResultView go={go} result={complianceResult} declaration={declaration} inspectionMeta={inspectionMeta} />
+  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} />
   else view = <GenericModule view={active} go={go} />
 
   return (

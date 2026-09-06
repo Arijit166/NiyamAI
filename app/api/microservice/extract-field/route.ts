@@ -32,11 +32,9 @@ export async function POST(req: Request) {
   const stillMissing = msJson.value === null || msJson.value === undefined
 
   const fieldRecord = {
-    value: msJson.value ?? null,
+    value: stillMissing ? null : String(msJson.value),
     confidence: msJson.confidence ?? 0,
     source: msJson.source || 'recapture_llm_crop',
-    // Still not legible after a recapture -> the frontend falls back to
-    // "type manually" or "not applicable" only, per the spec.
     status: stillMissing ? 'missing' : 'extracted',
     reason: stillMissing ? msJson.reason || 'Still not legible after recapture' : null,
   }
