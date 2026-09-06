@@ -817,3 +817,142 @@ body,
     display: none;
   }
 }
+
+
+
+
+
+/* =========================================================
+   DESKTOP LOGIN — FIT ENTIRE PAGE IN VIEWPORT
+   ========================================================= */
+
+@media (min-width: 801px) {
+
+  .auth-page {
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .auth-visual {
+    height: 100vh;
+    min-height: 0;
+    padding: 28px 6vw;
+    overflow: hidden;
+  }
+
+  .auth-panel {
+    height: 100vh;
+    min-height: 0;
+    padding: 24px 5vw;
+    overflow: hidden;
+  }
+
+  .auth-card {
+    width: min(430px, 100%);
+  }
+
+  .auth-card h2 {
+    font-size: 28px;
+    margin: 6px 0 4px;
+  }
+
+  .auth-card > p {
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  .auth-card > label {
+    margin-top: 13px;
+    font-size: 12px;
+  }
+
+  .auth-card input {
+    height: 42px;
+    margin-top: 6px;
+    font-size: 13px;
+  }
+
+  .auth-options {
+    margin: 13px 0 16px;
+    font-size: 12px;
+  }
+
+  .check-label {
+    font-size: 12px;
+  }
+
+  .auth-submit {
+    height: 42px;
+    margin-top: 18px;
+    font-size: 13px;
+  }
+
+  .auth-divider {
+    margin: 18px 0 12px;
+  }
+
+  .auth-google-btn {
+    min-height: 42px;
+    font-size: 13px;
+  }
+
+  .auth-switch {
+    margin-top: 18px;
+    font-size: 12px;
+  }
+
+  .auth-switch a {
+    font-size: 12px;
+  }
+
+  .auth-copy h1 {
+    font-size: clamp(42px, 5vw, 68px);
+    margin: 14px 0;
+  }
+
+  .auth-copy p {
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .auth-scan {
+    right: 8%;
+    bottom: 10%;
+    transform: scale(.82) rotate(8deg);
+    transform-origin: bottom right;
+  }
+}
+
+
+/* Extra compact desktop screens such as 1366×768 */
+
+@media (min-width: 801px) and (max-height: 820px) {
+
+  .auth-visual {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .auth-panel {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .auth-card {
+    transform: scale(.94);
+    transform-origin: center;
+  }
+
+  .auth-copy h1 {
+    font-size: clamp(38px, 4.5vw, 60px);
+  }
+
+  .auth-copy p {
+    line-height: 1.5;
+  }
+
+  .auth-scan {
+    transform: scale(.68) rotate(8deg);
+  }
+}
