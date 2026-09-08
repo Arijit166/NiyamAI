@@ -48,6 +48,7 @@ export interface IInspection {
   // so this stays historically accurate even after ruleVersions.ts gains
   // further amendments later.
   complianceResult?: Record<string, unknown>
+  readability?: Record<string, unknown>
   passedToSeniorOfficer: boolean
   passedAt?: Date | null
   createdAt: Date
@@ -87,6 +88,7 @@ const InspectionSchema = new Schema<IInspection>(
     fields: { type: Map, of: FieldRecordSchema, default: {} },
     declaration: { type: Schema.Types.Mixed },
     complianceResult: { type: Schema.Types.Mixed },
+    readability: { type: Schema.Types.Mixed },
     passedToSeniorOfficer: { type: Boolean, default: false },
     passedAt: { type: Date, default: null },
   },

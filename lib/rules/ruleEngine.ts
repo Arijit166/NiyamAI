@@ -120,6 +120,24 @@ function checkMRP(input: ProductDeclaration): RuleCheckResult[] {
       ? pass('MRP_AMOUNT', 'Format compliance', 'mrp.amount', 'MRP amount is a valid positive number.', 'retail sale price declaration rule 6')
       : fail('MRP_AMOUNT', 'Format compliance', 'mrp.amount', 'CRITICAL', 95, 'MRP amount is missing or not a positive number.', 'retail sale price declaration rule 6')
   )
+  // NEW: Rule 6 requires the MRP declaration itself to say "inclusive of
+  // all taxes" — captured by ocr.py's mrp_tax_inclusive field.
+  const taxInclusiveOk = input.mrp_tax_inclusive === 'Yes'
+  results.push(
+    taxInclusiveOk
+      ? pass('MRP_TAX_INCLUSIVE', 'Format compliance', 'mrp_tax_inclusive', 'MRP is declared inclusive of all taxes.', 'retail sale price inclusive of taxes declaration rule 6')
+      : fail(
+          'MRP_TAX_INCLUSIVE',
+          'Format compliance',
+          'mrp_tax_inclusive',
+          'REVIEW_REQUIRED',
+          82,
+          input.mrp_tax_inclusive === 'No'
+            ? 'MRP is declared without the required "inclusive of all taxes" wording.'
+            : 'Could not confirm whether MRP is declared inclusive of all taxes — verify manually.',
+          'retail sale price inclusive of taxes declaration rule 6'
+        )
+  )
 
   return results
 }

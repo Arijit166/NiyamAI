@@ -3,6 +3,7 @@
 export interface ProductDeclaration {
   product_name?: string
   company_name?: string
+  mrp_tax_inclusive?: string
   net_quantity?: {
     value: number
     unit: string

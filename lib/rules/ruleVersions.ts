@@ -140,13 +140,45 @@ export function getEffectiveDateFromDeclaration(input: ProductDeclaration): { da
 }
 
 export function parsePackedDate(raw: string): { month: number; year: number } | null {
-  const match = /^\s*(\d{1,4})\s*[\/\-.\s]\s*(\d{1,4})\s*$/.exec(raw.trim())
-  if (!match) return null
-  const [, a, b] = match
-  let month: number, year: number
-  if (a.length === 4) { year = Number(a); month = Number(b) }
-  else if (b.length === 4) { year = Number(b); month = Number(a) }
-  else return null
+  const parts = raw
+    .trim()
+    .split(/[\/\-.\s]+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(Number)
+
+  if (parts.length < 2 || parts.length > 3 || parts.some((n) => !Number.isFinite(n))) return null
+
+  // Find the year: the part with 4+ digits (>=1000). If none has 4 digits,
+  // fall back to disambiguating a 2-part date by elimination.
+  const yearIdx = parts.findIndex((n) => n >= 1000)
+  let year: number
+  let rest: number[]
+
+  if (yearIdx !== -1) {
+    year = parts[yearIdx]
+    rest = parts.filter((_, i) => i !== yearIdx)
+  } else if (parts.length === 2) {
+    const [a, b] = parts
+    if (a > 12 && b <= 12) { year = a; rest = [b] }
+    else if (b > 12 && a <= 12) { year = b; rest = [a] }
+    else return null // genuinely ambiguous 2-part date, can't safely arrange
+  } else {
+    return null // 3-part date without a clear 4-digit year is too ambiguous
+  }
+
+  let month: number
+  if (rest.length === 1) {
+    month = rest[0]
+  } else {
+    const [x, y] = rest
+    if (x > 12) month = y
+    else if (y > 12) month = x
+    else month = y
+  }
+
   if (month < 1 || month > 12) return null
+  if (year < 100) year = year < 70 ? 2000 + year : 1900 + year // 2-digit year pivot
+
   return { month, year }
 }

@@ -14,6 +14,7 @@ interface PdfRequestBody {
   inspectionType?: string
   declaration: ProductDeclaration
   result: ComplianceResult
+  readability?: any
 }
 
 // POST /api/report/pdf — used from ResultView / ReportView, straight off
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         generatedAt: new Date().toLocaleString('en-IN'),
         declaration: body.declaration,
         result: body.result,
+        readability: body.readability,
       }) as React.ReactElement<any>
     )
 
@@ -66,6 +68,7 @@ export async function GET(req: NextRequest) {
 
     const declaration = inspection.declaration as ProductDeclaration
     const result = inspection.complianceResult as ComplianceResult
+    const readability = inspection.readability
     if (!declaration || !result) {
       return NextResponse.json(
         { error: 'This inspection has no saved compliance result to export.' },
@@ -82,9 +85,9 @@ export async function GET(req: NextRequest) {
         generatedAt: new Date().toLocaleString('en-IN'),
         declaration,
         result,
+        readability,
       }) as React.ReactElement<any>
     )
-
     return new NextResponse(buffer as unknown as BodyInit, {
       status: 200,
       headers: {

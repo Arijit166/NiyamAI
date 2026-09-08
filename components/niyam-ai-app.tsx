@@ -217,7 +217,8 @@ function InspectionView({ go, onCreated }: { go: (v: string) => void; onCreated:
 // `inspectionId` here is a temporary client-side id (see NiyamAIApp), used
 // only to tag the OCR calls — nothing is persisted to Mongo until the end.
 // ---------------------------------------------------------------------------
-function CaptureView({ go, inspectionId, onExtracted, onImageCaptured }: { go: (v: string) => void; inspectionId: string | null; onExtracted: (fields: Record<string, FieldRecord>) => void; onImageCaptured?: (base64: string) => void }) {
+// AFTER
+function CaptureView({ go, inspectionId, onExtracted, onImageCaptured, onReadability }: { go: (v: string) => void; inspectionId: string | null; onExtracted: (fields: Record<string, FieldRecord>) => void; onImageCaptured?: (base64: string) => void; onReadability?: (readability: any) => void }) {
   const [preview, setPreview] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -314,8 +315,9 @@ function CaptureView({ go, inspectionId, onExtracted, onImageCaptured }: { go: (
       form.append('image', file)
       const res = await fetch('/api/microservice/extract', { method: 'POST', body: form })
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Extraction failed')
-      const { structuredData } = await res.json()
+      const { structuredData, readability } = await res.json()
       onExtracted(structuredData)
+      onReadability?.(readability || null)
       go('extraction')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Extraction failed. Please retry.')
@@ -538,33 +540,6 @@ function ResultView({ go, result, declaration, inspectionMeta }: {
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
 
-  const exportPdf = async () => {
-    if (!result) return
-    setExporting(true)
-    setExportError(null)
-    try {
-      const res = await fetch('/api/report/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...inspectionMeta, declaration, result }),
-      })
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'PDF export failed')
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `inspection-${inspectionMeta.inspectionId || 'report'}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    } catch (e) {
-      setExportError(e instanceof Error ? e.message : 'PDF export failed.')
-    } finally {
-      setExporting(false)
-    }
-  }
-
   if (!result) {
     return <div className="page-content"><div className="empty-state panel"><h3>No result yet</h3><p>Run a compliance analysis first.</p><button className="button secondary" onClick={() => go('inspection')}>Start an inspection</button></div></div>
   }
@@ -629,6 +604,8 @@ function InspectionHistoryView({ onSelect }: { onSelect: (insp: any) => void }) 
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'passed' | 'saved'>('all')
 
   useEffect(() => {
     let cancelled = false
@@ -641,22 +618,44 @@ function InspectionHistoryView({ onSelect }: { onSelect: (insp: any) => void }) 
     return () => { cancelled = true }
   }, [])
 
+  const filtered = items.filter((insp) => {
+    const name = (insp.declaration?.product_name || 'Unnamed product').toLowerCase()
+    if (query && !name.includes(query.toLowerCase())) return false
+    if (statusFilter === 'passed' && !insp.passedToSeniorOfficer) return false
+    if (statusFilter === 'saved' && insp.passedToSeniorOfficer) return false
+    return true
+  })
+
   return <div className="page-content">
     <div className="page-heading"><div><div className="eyebrow">CASE REPOSITORY</div><h1>Inspections</h1><p>Every case you've saved. Tap one to view the full record.</p></div></div>
+    <div className="inspection-toolbar">
+      <div className="inspection-search">
+        <Search size={15} />
+        <input placeholder="Search by product name..." value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
+      <div className="inspection-filter-group">
+        <button className={cn('inspection-filter-chip', statusFilter === 'all' && 'active')} onClick={() => setStatusFilter('all')}>All</button>
+        <button className={cn('inspection-filter-chip', statusFilter === 'saved' && 'active')} onClick={() => setStatusFilter('saved')}>Saved</button>
+        <button className={cn('inspection-filter-chip', statusFilter === 'passed' && 'active')} onClick={() => setStatusFilter('passed')}>Passed</button>
+      </div>
+    </div>
     {loading && <p style={{ color: '#64748b', fontSize: 12 }}>Loading inspections...</p>}
     {error && <p style={{ color: '#ef4444', fontSize: 12 }}>{error}</p>}
-    {!loading && !error && items.length === 0 && <div className="empty-state panel"><h3>No inspections yet</h3><p>Saved cases will show up here.</p></div>}
-    <div className="inspection-card-grid">
-      {items.map((insp) => (
-        <button key={insp._id} className="inspection-card" onClick={() => onSelect(insp)}>
-          <div className="inspection-card-img">
+    {!loading && !error && filtered.length === 0 && <div className="empty-state panel"><h3>No inspections found</h3><p>Try a different search or filter.</p></div>}
+    <div className="inspection-row-list">
+      {filtered.map((insp) => (
+        <div key={insp._id} className="inspection-row">
+          <div className="inspection-row-img">
             {insp.capturedImageUrl ? <img src={insp.capturedImageUrl} alt={insp.declaration?.product_name || 'Product'} /> : <Box size={22} />}
           </div>
-          <div className="inspection-card-body">
+          <div className="inspection-row-body">
             <strong>{insp.declaration?.product_name || 'Unnamed product'}</strong>
             <small>{insp.passedToSeniorOfficer ? 'Passed to senior officer' : 'Saved'}</small>
           </div>
-        </button>
+          <div className="inspection-row-action">
+            <button className="button secondary" onClick={() => onSelect(insp)}>View details <ChevronRight size={14} /></button>
+          </div>
+        </div>
       ))}
     </div>
   </div>
@@ -694,7 +693,7 @@ function InspectionDetailView({ inspectionId, onBack, onGenerateReport, onEdit }
       <div><div className="eyebrow">CASE RECORD</div><h1>{insp.declaration?.product_name || 'Inspection record'}</h1><p>{insp.premisesName} • {insp.location?.address}</p></div>
       <div className="heading-actions">
         <button className="button secondary" onClick={onBack}>Back</button>
-        <button className="button secondary" onClick={() => onEdit(insp)}><Edit3 size={16} /> Edit</button>
+        <button className="button secondary" onClick={() => onEdit(insp)}><Edit3 size={16} /> Update</button>
         <button className="button primary" onClick={() => onGenerateReport(insp)}><FileText size={16} /> Generate report</button>
       </div>
     </div>
@@ -747,7 +746,7 @@ function GenericModule({ view, go }: { view: string; go: (v: string) => void }) 
 // ReportView now also wires "Generate PDF" to the same export handler as
 // ResultView (passed down as a prop), so the officer can export from either
 // screen without duplicating the fetch/download logic.
-function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveError, role, isPassed, onPass, passing, passError }: {
+function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveError, role, isPassed, onPass, passing, passError, readability }: {
   go: (v: string) => void
   onSave: () => void
   saving: boolean
@@ -760,7 +759,9 @@ function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveE
   onPass: () => void
   passing: boolean
   passError: string | null
+  readability?: any
 }) {
+  const overall = readability?.overall_readability
   return <div className="page-content">
     <div className="page-heading">
       <div><div className="eyebrow">CASE CLOSURE</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div>
@@ -774,6 +775,17 @@ function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveE
         )}
       </div>
     </div>
+    {overall && (
+      <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
+        <div className="eyebrow">PHOTO READABILITY</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+          <Badge tone={overall.human_readable ? 'green' : 'amber'}>{overall.grade}</Badge>
+          <span style={{ fontSize: 12, color: '#64748b' }}>Score {overall.score}/100</span>
+          {overall.major_issue && <span style={{ fontSize: 12, color: '#64748b' }}>• {overall.major_issue}</span>}
+        </div>
+        {overall.retake_required && <p style={{ color: '#f59e0b', fontSize: 11, marginTop: 6 }}>Retake recommended for stronger evidence.</p>}
+      </div>
+    )}
     {saveError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{saveError}</p>}
     {passError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{passError}</p>}
   </div>
@@ -859,6 +871,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const declaration: ProductDeclaration = {
     product_name: fields.product_name?.value || undefined,
     company_name: fields.company_name?.value || undefined,
+    mrp_tax_inclusive: fields.mrp_tax_inclusive?.value || undefined,
     net_quantity: {
       value: parseNum(netQtyRaw) || 0,
       unit: normalizeUnit(unitMatch?.[1] || 'g'),
@@ -886,10 +899,10 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
     if (!complianceResult) return
     setExportingPdf(true)
     try {
-      const res = await fetch('/api/report/pdf', {
+        const res = await fetch('/api/report/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...inspectionMeta, declaration, result: complianceResult }),
+        body: JSON.stringify({ ...inspectionMeta, declaration, result: complianceResult, readability }),
       })
       if (!res.ok) throw new Error('PDF export failed')
       const blob = await res.blob()
@@ -925,7 +938,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...inspectionDraft, fields, declaration, complianceResult, capturedImageUrl: capturedImageBase64 }),
+        body: JSON.stringify({ ...inspectionDraft, fields, declaration, complianceResult, capturedImageUrl: capturedImageBase64, readability }),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => null)
@@ -961,12 +974,13 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   }
 
   const handleLoadForEdit = (insp: any) => {
-    setMongoInspectionId(insp._id)
+    setMongoInspectionId(null)
     setFields(insp.fields || {})
     setIsImported(!!insp.declaration?.is_imported)
     setInspectionDraft({ inspectionType: insp.inspectionType || 'Physical store', premisesName: insp.premisesName || '', notes: insp.notes || '', location: insp.location || { address: '' } })
-    setInspectionId(insp.inspectionId || crypto.randomUUID())
+    setInspectionId(crypto.randomUUID())
     setCapturedImageBase64(insp.capturedImageUrl || null)
+    setReadability(insp.readability || null)
     setComplianceResult(null)
     setIsCaseSaved(false)
     setIsPassedToSenior(false)
@@ -981,14 +995,15 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
     setInspectionDraft({ inspectionType: insp.inspectionType || 'Physical store', premisesName: insp.premisesName || '', notes: insp.notes || '', location: insp.location || { address: '' } })
     setInspectionId(insp.inspectionId || crypto.randomUUID())
     setCapturedImageBase64(insp.capturedImageUrl || null)
+    setReadability(insp.readability || null)
     setIsCaseSaved(true)
     setIsPassedToSenior(!!insp.passedToSeniorOfficer)
     go('report')
   }
-
+  const [readability, setReadability] = useState<any | null>(null)
   let view: React.ReactNode
   if (active === 'overview') view = <Dashboard go={go} />
-    else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => {
+  else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => {
     setInspectionDraft(draft)
     setInspectionId(crypto.randomUUID())
     setIsCaseSaved(false)
@@ -996,13 +1011,14 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
     setCapturedImageBase64(null)
     setIsPassedToSenior(false)
     setComplianceResult(null)
+    setReadability(null)
     setFields({})
   }} />
-  else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={handleExtracted} onImageCaptured={setCapturedImageBase64} />
+  else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={handleExtracted} onImageCaptured={setCapturedImageBase64} onReadability={setReadability} />
   else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} isImported={isImported} setIsImported={setIsImported} />
   else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={(result) => { setComplianceResult(result); setIsCaseSaved(false); setIsPassedToSenior(false) }} />
   else if (active === 'result') view = <ResultView go={go} result={complianceResult} declaration={declaration} inspectionMeta={inspectionMeta} />
-  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} />
+  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} readability={readability} />
   else if (active === 'profile') view = <ProfileView user={user} />
   else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
   else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />

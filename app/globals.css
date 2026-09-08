@@ -4007,3 +4007,114 @@ tbody tr:hover {
   color: var(--muted);
   font-size: 10px;
 }
+.inspection-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.inspection-search {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.inspection-search input {
+  background: none;
+  border: 0;
+  outline: 0;
+  color: var(--foreground);
+  width: 100%;
+  font-size: 12px;
+}
+
+.inspection-filter-group {
+  display: flex;
+  gap: 6px;
+}
+
+.inspection-filter-chip {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.inspection-filter-chip.active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: var(--surface);
+}
+
+.inspection-row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inspection-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 10px;
+  transition: .15s;
+}
+
+.inspection-row:hover {
+  border-color: var(--cyan);
+}
+
+.inspection-row-img {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.inspection-row-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inspection-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspection-row-body strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.inspection-row-body small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.inspection-row-action {
+  flex: none;
+}

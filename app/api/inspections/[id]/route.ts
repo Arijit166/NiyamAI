@@ -10,19 +10,16 @@ import mongoose from 'mongoose'
 // handleSaveCase stores saved.inspection._id as mongoInspectionId).
 // The previous version of this route looked up by the human-readable
 // `inspectionId` string instead, which is why detail/edit loads failed.
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     await connectDB()
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ error: 'Invalid inspection id.' }, { status: 400 })
     }
 
-    // flattenMaps: the `fields` schema field is a Mongoose Map — without
-    // this, .lean() can hand back a Map instance that doesn't serialize
-    // cleanly through NextResponse.json(), which would silently blank out
-    // every declaration field on the detail/edit screens.
-    const inspection = await Inspection.findById(params.id).lean({ flattenMaps: true })
+    const inspection = await Inspection.findById(id).lean({ flattenMaps: true })
     if (!inspection) {
       return NextResponse.json({ error: 'Inspection not found.' }, { status: 404 })
     }
@@ -47,14 +44,15 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 // Only keys actually present in the body are written, so a "pass" call
 // never clobbers the declaration/fields, and a "save after edit" call
 // never has to also resend the pass flag.
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
     }
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    const { id } = await params
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json({ error: 'Invalid inspection id.' }, { status: 400 })
     }
 
@@ -69,6 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       'fields',
       'declaration',
       'capturedImageUrl',
+      'readability',
     ] as const
 
     for (const key of allowedFields) {
@@ -102,7 +101,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'No valid fields to update.' }, { status: 400 })
     }
 
-    const inspection = await Inspection.findByIdAndUpdate(params.id, update, { new: true }).lean({
+    const inspection = await Inspection.findByIdAndUpdate(id, update, { new: true }).lean({
       flattenMaps: true,
     })
     if (!inspection) {

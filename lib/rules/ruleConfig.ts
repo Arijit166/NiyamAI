@@ -1,9 +1,3 @@
-// Non-versioned constants only. MANDATORY_FIELDS, FONT_HEIGHT_TABLE,
-// minHeightForArea and VALID_UNITS used to live here, but those DO change
-// between amendments (that's the whole point of the versioning feature), so
-// they now live in ./ruleVersions.ts as part of a dated RuleVersion. This
-// file keeps only the things that are format/regex rules, not legal
-// thresholds that get amended over time.
 export { resolveRuleVersion, getEffectiveDateFromDeclaration, minHeightForArea, RULE_VERSIONS } from './ruleVersions'
 export type { RuleVersion } from './ruleVersions'
 

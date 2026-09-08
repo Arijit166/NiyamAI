@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { inspectionType, premisesName, notes, location, fields, declaration, complianceResult } = body
+    const { inspectionType, premisesName, notes, location, fields, declaration, complianceResult, capturedImageUrl, readability } = body
 
     if (!premisesName) {
       return NextResponse.json({ error: 'premisesName is required.' }, { status: 400 })
@@ -46,8 +46,10 @@ export async function POST(req: NextRequest) {
       notes,
       location,
       fields,
-      declaration, // full resolved ProductDeclaration snapshot, needed to regenerate the PDF later from history
-      complianceResult, // includes appliedRuleVersion, so the rule basis stays pinned even if ruleVersions.ts changes later
+      declaration,
+      complianceResult,
+      capturedImageUrl,
+      readability,
       status: statusFromCompliance(complianceResult?.status),
     })
 

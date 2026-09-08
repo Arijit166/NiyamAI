@@ -18,7 +18,7 @@ function isMissingValue(v: unknown): boolean {
   }
   return false
 }
-
+const FONT_CONFIDENCE_MAP: Record<string, number> = { HIGH: 0.9, MEDIUM: 0.65, LOW: 0.4 }
 // POST /api/microservice/extract
 // FormData: { inspectionId: string, image: File }
 // Single-capture flow: exactly one package photo, no multi-surface set.
@@ -41,12 +41,13 @@ export async function POST(req: Request) {
   }
   const msJson = await msRes.json()
   const structuredData = msJson?.result?.structured_data || {}
-
-  // Map the microservice's {value, confidence, reason, manual_review,
-  // validation_reason} shape onto our per-field record used by the
-  // Extraction screen's missing-field UI.
   const fields: Record<string, any> = {}
   for (const [name, entry] of Object.entries<any>(structuredData)) {
+    // Skip normalizer.py's audit-trail copies (mrp_raw, manufacturing_date_normalized,
+    // etc.) — these exist for the audit log, not as separate declarations to show
+    // or resolve. Without this filter, MRP (and anything else normalized) showed
+    // up twice on the Extraction screen.
+    if (name.endsWith('_raw') || name.endsWith('_normalized')) continue
     const missing = isMissingValue(entry.value)
     fields[name] = {
       value: missing ? null : String(entry.value),
@@ -57,9 +58,6 @@ export async function POST(req: Request) {
     }
   }
 
-  // product_name lives at the TOP LEVEL of the microservice's response
-  // (output_payload["product_name"] in ocr.py), not inside structured_data —
-  // pull it in separately so it isn't silently dropped.
   const productName = msJson?.result?.product_name
   fields['product_name'] = {
     value: isMissingValue(productName) ? null : String(productName),
@@ -69,16 +67,43 @@ export async function POST(req: Request) {
     reason: isMissingValue(productName) ? 'Not detected' : null,
   }
 
+  // NEW: auto-fill font_height_mm from font.py's ArUco-calibrated measurement
+  // (json_builder's "font_measurements" block) rather than leaving it for the
+  // officer to type in — Rule 7's numeral-height check governs the net
+  // quantity declaration specifically, so that field is preferred when its
+  // measurement is available; otherwise the highest-confidence measurement
+  // found anywhere on the label is used.
+  const fontMeasurements = msJson?.result?.font_measurements
+  if (fontMeasurements?.measurement_available) {
+    const CONFIDENCE_RANK: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+    let best: { field: string; measurement: any } | null = null
+    for (const [fieldName, measurement] of Object.entries<any>(fontMeasurements.fields || {})) {
+      if (!measurement?.available) continue
+      if (fieldName === 'net_quantity') { best = { field: fieldName, measurement }; break }
+      if (!best || (CONFIDENCE_RANK[measurement.confidence] || 0) > (CONFIDENCE_RANK[best.measurement.confidence] || 0)) {
+        best = { field: fieldName, measurement }
+      }
+    }
+    if (best) {
+      fields['font_height_mm'] = {
+        value: String(best.measurement.character_height_mm),
+        confidence: FONT_CONFIDENCE_MAP[best.measurement.confidence] ?? 0.4,
+        source: 'font_measurement',
+        status: 'extracted',
+        reason: `Measured from "${best.field}" via ArUco calibration marker (±${best.measurement.measurement_uncertainty_mm}mm).`,
+      }
+    }
+  }
+
   await connectDB()
   const inspection = await Inspection.findOneAndUpdate(
     { inspectionId },
-    {
-      status: 'extracted',
-      ocrRaw: msJson.result,
-      fields,
-    },
+    { status: 'extracted', ocrRaw: msJson.result, fields },
     { new: true }
   )
 
-  return NextResponse.json({ inspection, structuredData: fields })
+  // NEW: readability travels alongside the extraction response but is
+  // deliberately NOT merged into `fields` — it's not a declaration the
+  // officer resolves, just evidence quality shown later on the report.
+  return NextResponse.json({ inspection, structuredData: fields, readability: msJson?.result?.readability || null })
 }
