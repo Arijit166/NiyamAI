@@ -30,6 +30,12 @@ Ties every stage together:
     build_review_flags()       (validator.py)
       |
       v
+    compute_readability()      (readability.py: "can a human read it?")
+      |
+      v
+    compute_font_measurements() (font.py: physical font-height in mm)
+      |
+      v
     build_final_json()         (json_builder.py)
       |
       v
@@ -52,6 +58,8 @@ import validator as validator
 import confidence as confidence_mod
 import field_extractor
 import json_builder as json_builder
+import readability as readability_mod
+import font as font_mod
 
 
 class LabelExtractionPipeline:
@@ -199,6 +207,25 @@ class LabelExtractionPipeline:
             uncertain_or_flagged_text=ocr_payload.get("uncertain_or_flagged_text", []),
         )
 
+        # 7b. Readability ("can a human read it?") — scored on the same
+        # processed_img/detections that ocr.py's bboxes are relative to.
+        readability_result = readability_mod.compute_readability(
+            image=processed_img,
+            detections=ocr_payload.get("detections", []),
+            structured_data=structured_data,
+            ocr_average_confidence=ocr_payload.get("metrics", {}).get("average_confidence"),
+        )
+
+        # 7c. Physical font-height measurement (mm), via ArUco calibration
+        # marker. Uses the same processed_img/detections as readability.py
+        # so bbox coordinates line up; returns measurement_available=False
+        # cleanly if no marker is present in frame.
+        font_result = font_mod.compute_font_measurements(
+            image=processed_img,
+            detections=ocr_payload.get("detections", []),
+            structured_data=structured_data,
+        )
+
         # 8. Assemble final JSON
         final_json = json_builder.build_final_json(
             metadata=ocr_payload.get("metadata", {"filename": filename}),
@@ -211,6 +238,8 @@ class LabelExtractionPipeline:
             cross_field_results=cross_field_results,
             confidence_result=confidence_result,
             review_flags=review_flags,
+            readability_result=readability_result,
+            font_result=font_result,
         )
         final_json["semantic_sections"] = {
             "claims": semantic.get("claims", []),

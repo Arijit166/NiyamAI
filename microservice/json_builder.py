@@ -17,6 +17,8 @@ Final shape:
       "validation": {...},           # per-field + cross-field validation results
       "confidence": {...},           # document_score + field_scores
       "review": {...},               # needs_manual_review + review_reason
+      "readability": {...},          # image_quality + field_visibility + overall_readability
+      "font_measurements": {...},    # physical (mm) font-height measurements, per field
     }
 """
 
@@ -57,6 +59,8 @@ def build_final_json(
     cross_field_results: List[Dict[str, Any]],
     confidence_result: Dict[str, Any],
     review_flags: Dict[str, Any],
+    readability_result: Optional[Dict[str, Any]] = None,
+    font_result: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     field_scores = confidence_result.get("field_scores", {})
 
@@ -99,4 +103,6 @@ def build_final_json(
         },
         "confidence": confidence_result,
         "review": review_flags,
+        "readability": readability_result or {},
+        "font_measurements": font_result or {},
     }
