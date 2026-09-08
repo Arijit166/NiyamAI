@@ -1,53 +1,74 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { connectDB } from '@/lib/mongodb'
 import Inspection from '@/models/Inspection'
 
-async function nextInspectionId() {
+function generateInspectionId() {
   const year = new Date().getFullYear()
-  const count = await Inspection.countDocuments({
-    inspectionId: { $regex: `^INS-${year}-` },
-  })
-  const seq = String(count + 1).padStart(5, '0')
-  return `INS-${year}-${seq}`
+  const rand = Math.floor(Math.random() * 100000).toString().padStart(5, '0')
+  return `INS-${year}-${rand}`
 }
 
-// POST /api/inspections -> create a new (dynamic) inspection record.
-// Body: { inspectionType, location: {address, lat?, lng?}, premisesName, notes }
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+// Maps a ComplianceResult['status'] onto the Inspection document's status enum.
+function statusFromCompliance(status?: string) {
+  if (status === 'COMPLIANT') return 'compliant'
+  if (status === 'NON-COMPLIANT') return 'non_compliant'
+  if (status === 'REVIEW REQUIRED') return 'review_required'
+  return 'reviewed'
+}
+
+// The ONE place an inspection actually gets written to Mongo — called from
+// NiyamAIApp's handleSaveCase, only after inspection details, capture,
+// extraction, analysis and result have all been completed and the officer
+// explicitly clicks "Save case" on the Report screen.
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const { inspectionType, premisesName, notes, location, fields, declaration, complianceResult } = body
+
+    if (!premisesName) {
+      return NextResponse.json({ error: 'premisesName is required.' }, { status: 400 })
+    }
+
+    await connectDB()
+
+    const inspection = await Inspection.create({
+      inspectionId: generateInspectionId(),
+      officer: (session.user as any).id,
+      inspectionType,
+      premisesName,
+      notes,
+      location,
+      fields,
+      declaration, // full resolved ProductDeclaration snapshot, needed to regenerate the PDF later from history
+      complianceResult, // includes appliedRuleVersion, so the rule basis stays pinned even if ruleVersions.ts changes later
+      status: statusFromCompliance(complianceResult?.status),
+    })
+
+    return NextResponse.json({ inspection }, { status: 201 })
+  } catch (err) {
+    console.error('[inspections] save failed:', err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to save inspection.' },
+      { status: 500 }
+    )
   }
-
-  const body = await req.json()
-  await connectDB()
-
-  const inspectionId = await nextInspectionId()
-
-  const inspection = await Inspection.create({
-    inspectionId,
-    officer: (session.user as any).id,
-    inspectionType: body.inspectionType || 'Physical store',
-    location: body.location || { address: '' },
-    premisesName: body.premisesName || '',
-    notes: body.notes || '',
-    status: 'draft',
-    fields: {},
-  })
-
-  return NextResponse.json({ inspection })
 }
 
-// GET /api/inspections -> list inspections for the repository/history view
+// GET /api/inspections — repository list for the "Inspections" / History view.
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  try {
+    await connectDB()
+    const inspections = await Inspection.find().sort({ createdAt: -1 }).limit(100).lean({ flattenMaps: true })
+    return NextResponse.json({ inspections })
+  } catch (err) {
+    console.error('[inspections] list failed:', err)
+    return NextResponse.json({ error: 'Failed to load inspections.' }, { status: 500 })
   }
-
-  await connectDB()
-  const inspections = await Inspection.find().sort({ createdAt: -1 }).limit(100).populate('officer', 'name')
-  return NextResponse.json({ inspections })
 }

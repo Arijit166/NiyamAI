@@ -38,8 +38,18 @@ export interface IInspection {
   // field_name -> IFieldRecord, this is what the Extraction screen renders
   fields: Record<string, IFieldRecord>
 
-  complianceResult?: Record<string, unknown>
+  // NEW: the exact ProductDeclaration snapshot that was actually evaluated,
+  // so a PDF can be regenerated later from history without re-deriving it
+  // from `fields` (and without it silently drifting if the mapping logic
+  // in the frontend changes in the future).
+  declaration?: Record<string, unknown>
 
+  // includes appliedRuleVersion — pinning WHICH dated rule version was used,
+  // so this stays historically accurate even after ruleVersions.ts gains
+  // further amendments later.
+  complianceResult?: Record<string, unknown>
+  passedToSeniorOfficer: boolean
+  passedAt?: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -75,7 +85,10 @@ const InspectionSchema = new Schema<IInspection>(
     capturedImageUrl: { type: String },
     ocrRaw: { type: Schema.Types.Mixed },
     fields: { type: Map, of: FieldRecordSchema, default: {} },
+    declaration: { type: Schema.Types.Mixed },
     complianceResult: { type: Schema.Types.Mixed },
+    passedToSeniorOfficer: { type: Boolean, default: false },
+    passedAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

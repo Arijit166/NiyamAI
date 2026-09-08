@@ -1,13 +1,12 @@
 import type { ProductDeclaration, RuleCheckResult } from './types'
+import type { RuleVersion } from './ruleVersions'
+import { minHeightForArea } from './ruleVersions'
 import {
-  MANDATORY_FIELDS,
-  VALID_UNITS,
   CONSUMER_CARE_PHONE_REGEX,
   CONSUMER_CARE_EMAIL_REGEX,
   PIN_CODE_REGEX,
-  PACKED_DATE_REGEX,
+  parsePackedDate,
   CURRENCY_SYMBOLS,
-  minHeightForArea,
 } from './ruleConfig'
 
 function pass(code: string, category: RuleCheckResult['category'], field: string, message: string, legalQuery: string): RuleCheckResult {
@@ -26,8 +25,11 @@ function fail(
 }
 
 // --- Rule 6(1): mandatory declarations must be present -------------------
-function checkMandatoryPresence(input: ProductDeclaration): RuleCheckResult[] {
-  return MANDATORY_FIELDS.map(({ field, label, legalQuery }) => {
+// Which fields are mandatory is version-agnostic so far, but the field list
+// still comes off `ruleVersion` (not a static import) so a future amendment
+// that ADDS a mandatory declaration only needs a new entry in ruleVersions.ts.
+function checkMandatoryPresence(input: ProductDeclaration, ruleVersion: RuleVersion): RuleCheckResult[] {
+  return ruleVersion.mandatoryFields.map(({ field, label, legalQuery }) => {
     const value = input[field]
     const present = value !== undefined && value !== null && value !== ''
     return present
@@ -36,14 +38,14 @@ function checkMandatoryPresence(input: ProductDeclaration): RuleCheckResult[] {
   })
 }
 
-// --- Net quantity: valid unit + positive value ----------------------------
-function checkNetQuantity(input: ProductDeclaration): RuleCheckResult[] {
+// --- Net quantity: valid unit (per rule version) + positive value ---------
+function checkNetQuantity(input: ProductDeclaration, ruleVersion: RuleVersion): RuleCheckResult[] {
   const nq = input.net_quantity
   if (!nq) return [] // already covered by mandatory-presence check
 
   const results: RuleCheckResult[] = []
 
-  const unitOk = VALID_UNITS.includes(nq.unit)
+  const unitOk = ruleVersion.validUnits.includes(nq.unit)
   results.push(
     unitOk
       ? pass('NQ_UNIT', 'Format compliance', 'net_quantity.unit', `Unit "${nq.unit}" is a recognised standard unit.`, 'standard units of weight or measure rule 6')
@@ -60,8 +62,8 @@ function checkNetQuantity(input: ProductDeclaration): RuleCheckResult[] {
   return results
 }
 
-// --- Font height vs Rule 7(2) / Table-I -----------------------------------
-function checkFontHeight(input: ProductDeclaration): RuleCheckResult | null {
+// --- Font height vs Rule 7(2) / Table-I (per rule version) ----------------
+function checkFontHeight(input: ProductDeclaration, ruleVersion: RuleVersion): RuleCheckResult | null {
   const nq = input.net_quantity
   if (!nq || nq.font_height_mm === undefined) return null
 
@@ -77,23 +79,23 @@ function checkFontHeight(input: ProductDeclaration): RuleCheckResult | null {
       'net_quantity.font_height_mm',
       'REVIEW_REQUIRED',
       87,
-      `Font height (${nq.font_height_mm}mm) was detected, but Principal Display Panel area was not, so compliance against Table-I can't be confirmed automatically.`,
+      `Font height (${nq.font_height_mm}mm) was detected, but Principal Display Panel area was not, so compliance against Table-I (${ruleVersion.label}) can't be confirmed automatically.`,
       legalQuery
     )
   }
 
-  const required = minHeightForArea(nq.principal_display_panel_area_cm2)
+  const required = minHeightForArea(nq.principal_display_panel_area_cm2, ruleVersion)
   const compliant = nq.font_height_mm >= required
 
   return compliant
-    ? pass('FONT_HEIGHT', 'Font analysis', 'net_quantity.font_height_mm', `${nq.font_height_mm}mm meets the ${required}mm minimum for this panel size.`, legalQuery)
+    ? pass('FONT_HEIGHT', 'Font analysis', 'net_quantity.font_height_mm', `${nq.font_height_mm}mm meets the ${required}mm minimum for this panel size under ${ruleVersion.label}.`, legalQuery)
     : fail(
         'FONT_HEIGHT',
         'Font analysis',
         'net_quantity.font_height_mm',
         'CRITICAL',
         92,
-        `${nq.font_height_mm}mm is below the ${required}mm minimum required for a panel of this size.`,
+        `${nq.font_height_mm}mm is below the ${required}mm minimum required for a panel of this size under ${ruleVersion.label}.`,
         legalQuery
       )
 }
@@ -111,7 +113,8 @@ function checkMRP(input: ProductDeclaration): RuleCheckResult[] {
       : fail('MRP_CURRENCY', 'Format compliance', 'mrp.currency', 'REVIEW_REQUIRED', 75, 'MRP currency symbol not clearly recognised — verify "inclusive of all taxes" wording is present.', 'retail sale price inclusive of taxes declaration rule 6')
   )
 
-  const amountOk = typeof mrp.amount === 'number' && mrp.amount > 0
+  const parsedAmount = Number(mrp.amount)
+  const amountOk = !isNaN(parsedAmount) && parsedAmount > 0
   results.push(
     amountOk
       ? pass('MRP_AMOUNT', 'Format compliance', 'mrp.amount', 'MRP amount is a valid positive number.', 'retail sale price declaration rule 6')
@@ -144,16 +147,13 @@ function checkManufacturer(input: ProductDeclaration): RuleCheckResult | null {
 // --- Packed date: valid MM/YYYY, not in the future --------------------------
 function checkPackedDate(input: ProductDeclaration): RuleCheckResult | null {
   if (!input.packed_date) return null
-  const match = PACKED_DATE_REGEX.exec(input.packed_date)
-  if (!match) {
-    return fail('PACKED_DATE_FORMAT', 'Format compliance', 'packed_date', 'REVIEW_REQUIRED', 82, `"${input.packed_date}" is not in the expected MM/YYYY format.`, 'month and year of manufacture or packing declaration rule 6')
+  const parsed = parsePackedDate(input.packed_date)
+  if (!parsed) {
+    return fail('PACKED_DATE_FORMAT', 'Format compliance', 'packed_date', 'REVIEW_REQUIRED', 82, `"${input.packed_date}" is not in a recognised MM/YYYY or YYYY/MM format.`, 'month and year of manufacture or packing declaration rule 6')
   }
-
-  const [, month, year] = match
-  const declaredDate = new Date(Number(year), Number(month) - 1, 1)
+  const declaredDate = new Date(parsed.year, parsed.month - 1, 1)
   const now = new Date()
   const inFuture = declaredDate.getTime() > new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-
   return inFuture
     ? fail('PACKED_DATE_FUTURE', 'Data consistency', 'packed_date', 'CRITICAL', 90, `Packed date "${input.packed_date}" is in the future.`, 'month and year of manufacture or packing declaration rule 6')
     : pass('PACKED_DATE', 'Format compliance', 'packed_date', 'Packed date is validly formatted and not in the future.', 'month and year of manufacture or packing declaration rule 6')
@@ -178,11 +178,11 @@ function checkImportRequirements(input: ProductDeclaration): RuleCheckResult | n
     : fail('COUNTRY_OF_ORIGIN', 'Mandatory declarations', 'country_of_origin', 'CRITICAL', 94, 'Product is marked as imported but no country of origin was declared.', 'country of origin declaration imported package rule 6')
 }
 
-export function runComplianceChecks(input: ProductDeclaration): RuleCheckResult[] {
+export function runComplianceChecks(input: ProductDeclaration, ruleVersion: RuleVersion): RuleCheckResult[] {
   const checks: (RuleCheckResult | null)[] = [
-    ...checkMandatoryPresence(input),
-    ...checkNetQuantity(input),
-    checkFontHeight(input),
+    ...checkMandatoryPresence(input, ruleVersion),
+    ...checkNetQuantity(input, ruleVersion),
+    checkFontHeight(input, ruleVersion),
     ...checkMRP(input),
     checkManufacturer(input),
     checkPackedDate(input),

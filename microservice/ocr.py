@@ -105,6 +105,7 @@ _BATCH_LABEL_RE = re.compile(r'\b(batch\s*no\.?|b\.?\s*no\.?|batch\s*number|lot\
 _MFG_DATE_LABEL_RE = re.compile(r'\b(mfg\.?\s*date|mfg\.?\s*dt\.?|manufacturing\s*date|pkd\.?|packed\s*on|packing\s*date)\b', re.I)
 _EXP_DATE_LABEL_RE = re.compile(r'\b(exp\.?\s*date|exp\.?\s*dt\.?|expiry\s*date|use\s*before|best\s*before)\b', re.I)
 _MRP_LABEL_RE = re.compile(r'\b(mrp|m\.r\.p\.?|maximum\s*retail\s*price)\b', re.I)
+_MRP_TAX_INCLUSIVE_RE = re.compile(r'\b(incl(?:usive|\.)?\s*(?:of)?\s*all\s*tax(?:es)?)\b', re.I)
 _NET_QTY_RE = re.compile(r'\b\d+(\.\d+)?\s*(g|gm|gms|kg|ml|l|litre|liters?)\b', re.I)
 _CONSUMER_CARE_LABEL_RE = re.compile(r'\b(consumer\s*care|customer\s*care|helpline|toll[- ]?free)\b', re.I)
 _EMAIL_RE = re.compile(r'[\w.\-]+@[\w.\-]+\.\w+')
@@ -146,7 +147,9 @@ def regex_extract_fields(lines: List[str]) -> Dict[str, str]:
         "manufacturer": None,
         "manufacturer_address": None,
         "marketer": None,
+        "company_name": None,
         "mrp": None,
+        "mrp_tax_inclusive": None,
         "net_quantity": None,
         "manufacturing_date": None,
         "batch_number": None,
@@ -264,6 +267,13 @@ def regex_extract_fields(lines: List[str]) -> Dict[str, str]:
                 continue
 
         i += 1
+
+    # MRP declarations must state "inclusive of all taxes" (Rule 6) — this
+    # phrase isn't tied to a fixed position relative to the MRP value, so
+    # scan the whole captured text rather than a single line.
+    if fields.get("mrp") and fields.get("mrp_tax_inclusive") is None:
+        full_text = " ".join(lines)
+        fields["mrp_tax_inclusive"] = "Yes" if _MRP_TAX_INCLUSIVE_RE.search(full_text) else "No"
 
     return {k: v for k, v in fields.items() if v}
 
@@ -513,7 +523,12 @@ class LLMCorrector:
             "structured_data must contain exactly these keys: manufacturer, "
             "manufacturer_address, marketer, mrp, net_quantity, manufacturing_date, "
             "batch_number, expiry_date, consumer_care, country_of_origin, "
-            "mfg_license_no — each set to the extracted value or \"UNKNOWN\". "
+            "mfg_license_no, mrp_tax_inclusive, company_name — each set to the extracted "
+            "value or \"UNKNOWN\" (mrp_tax_inclusive should be \"Yes\" or \"No\", not "
+            "UNKNOWN, whenever an MRP value is present in the text). "
+            "company_name is the entity's registered/trade name as printed on the label — "
+            "usually the same as manufacturer or marketer, but keep it as its own field "
+            "since a future feature will aggregate violations by this name. "
             "'marketer' is the company the product is made FOR (if the text distinguishes "
             "'manufactured for X by Y', X is marketer and Y is manufacturer).\n"
         )
@@ -658,6 +673,7 @@ class LLMCorrector:
                 "manufacturer", "manufacturer_address", "marketer", "mrp",
                 "net_quantity", "manufacturing_date", "batch_number",
                 "expiry_date", "consumer_care", "country_of_origin", "mfg_license_no",
+                "mrp_tax_inclusive", "company_name",
             }
             structured_data: Dict[str, Any] = {}
             field_sources: Dict[str, str] = {}
@@ -807,6 +823,7 @@ class LLMCorrector:
                 "manufacturer", "manufacturer_address", "marketer", "mrp",
                 "net_quantity", "manufacturing_date", "batch_number",
                 "expiry_date", "consumer_care", "country_of_origin", "mfg_license_no",
+                "mrp_tax_inclusive", "company_name",
             }
         )
 

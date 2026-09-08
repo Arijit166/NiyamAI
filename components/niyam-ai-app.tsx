@@ -30,7 +30,15 @@ const FIELD_LABELS: Record<string, string> = {
   consumer_care: 'Consumer care',
   country_of_origin: 'Country of origin',
   mfg_license_no: 'Mfg. license no.',
+  mrp_tax_inclusive: 'MRP inclusive of all taxes',
+  company_name: 'Company name',
   ingredients: 'Ingredients',
+  product_name: 'Product name',
+  // NEW: needed by the rule engine's font-height (Table-I) check. The
+  // OCR/DL layer doesn't extract these yet, so they'll usually come in
+  // "missing" and the officer resolves them like any other missing field.
+  font_height_mm: 'Numeral / letter height (mm)',
+  principal_display_panel_area_cm2: 'Principal Display Panel area (cm²)',
 }
 
 export type FieldRecord = {
@@ -53,15 +61,16 @@ export type InspectionDraft = {
 const nav = [
   { label: 'Overview', icon: LayoutDashboard, view: 'overview', section: 'COMMAND' },
   { label: 'New Inspection', icon: ScanLine, view: 'inspection', section: 'OPERATIONS', accent: true },
-  { label: 'Product Scanner', icon: Camera, view: 'capture', section: 'OPERATIONS' },
+  { label: 'Product Scanner', icon: Camera, view: 'capture', section: 'OPERATIONS', roles: ['admin', 'senior_officer'] },
   { label: 'Inspections', icon: ClipboardCheck, view: 'history', section: 'OPERATIONS' },
-  { label: 'Products', icon: Box, view: 'product', section: 'INTELLIGENCE' },
-  { label: 'Manufacturers', icon: UsersRound, view: 'manufacturer', section: 'INTELLIGENCE' },
-  { label: 'Risk Intelligence', icon: Radar, view: 'risk', section: 'INTELLIGENCE' },
-  { label: 'E-Commerce Monitor', icon: Globe2, view: 'commerce', section: 'INTELLIGENCE' },
-  { label: 'Evidence Vault', icon: Fingerprint, view: 'evidence', section: 'AUDIT' },
-  { label: 'Rule Intelligence', icon: FileCheck2, view: 'rules', section: 'AUDIT' },
-  { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'AUDIT' },
+  { label: 'Profile', icon: UserRound, view: 'profile', section: 'OPERATIONS' },
+  { label: 'Products', icon: Box, view: 'product', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
+  { label: 'Manufacturers', icon: UsersRound, view: 'manufacturer', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
+  { label: 'Risk Intelligence', icon: Radar, view: 'risk', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
+  { label: 'E-Commerce Monitor', icon: Globe2, view: 'commerce', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
+  { label: 'Evidence Vault', icon: Fingerprint, view: 'evidence', section: 'AUDIT', roles: ['admin', 'senior_officer'] },
+  { label: 'Rule Intelligence', icon: FileCheck2, view: 'rules', section: 'AUDIT', roles: ['admin', 'senior_officer'] },
+  { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'AUDIT', roles: ['admin', 'senior_officer'] },
 ]
 
 const ROLE_LABELS: Record<string, string> = {
@@ -128,13 +137,11 @@ function Topbar({ onMenu, onLogout, user }: { onMenu: () => void; onLogout: () =
 
 function Sidebar({ active, setActive, collapsed, setCollapsed, user }: { active: string; setActive: (v: string) => void; collapsed: boolean; setCollapsed: (v: boolean) => void; user: { name?: string | null; image?: string | null; role?: string | null } }) {
   let current = ''
+  const visibleNav = nav.filter((item) => !('roles' in item) || (item as any).roles.includes(user.role))
   return <aside className={cn('sidebar', collapsed && 'collapsed')}>
     <div className="sidebar-head"><Logo /><button className="collapse-button" onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar">{collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button></div>
     <div className="workspace"><span className="workspace-dot" /><div><strong>AI Compliance</strong><small>INTELLIGENCE PLATFORM</small></div></div>
-    <nav>{nav.map((item) => { const show = current !== item.section; current = item.section; return <div key={item.view}>{show && !collapsed && <div className="nav-section">{item.section}</div>}<button title={item.label} className={cn('nav-item', active === item.view && 'active', item.accent && 'accent')} onClick={() => setActive(item.view)}><item.icon size={17} /><span>{item.label}</span>{item.accent && <span className="live-dot" />}</button></div> })}</nav>
-    <div className="sidebar-bottom"><button className="nav-item" title="Notifications"><Bell size={17} /><span>Notifications</span><em>3</em></button><button className="nav-item" title="Help & Documentation"><Info size={17} /><span>Help & Documentation</span></button>
-      <div className="sidebar-profile"><Avatar name={user.name} image={user.image} size={32} /><div><strong>{user.name || 'Officer'}</strong><small>{ROLE_LABELS[user.role || ''] || 'Officer'}</small></div><Settings2 size={16} /></div>
-    </div>
+    <nav>{visibleNav.map((item) => { const show = current !== item.section; current = item.section; return <div key={item.view}>{show && !collapsed && <div className="nav-section">{item.section}</div>}<button title={item.label} className={cn('nav-item', active === item.view && 'active', item.accent && 'accent')} onClick={() => setActive(item.view)}><item.icon size={17} /><span>{item.label}</span>{item.accent && <span className="live-dot" />}</button></div> })}</nav>
   </aside>
 }
 
@@ -210,7 +217,7 @@ function InspectionView({ go, onCreated }: { go: (v: string) => void; onCreated:
 // `inspectionId` here is a temporary client-side id (see NiyamAIApp), used
 // only to tag the OCR calls — nothing is persisted to Mongo until the end.
 // ---------------------------------------------------------------------------
-function CaptureView({ go, inspectionId, onExtracted }: { go: (v: string) => void; inspectionId: string | null; onExtracted: (fields: Record<string, FieldRecord>) => void }) {
+function CaptureView({ go, inspectionId, onExtracted, onImageCaptured }: { go: (v: string) => void; inspectionId: string | null; onExtracted: (fields: Record<string, FieldRecord>) => void; onImageCaptured?: (base64: string) => void }) {
   const [preview, setPreview] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -297,6 +304,11 @@ function CaptureView({ go, inspectionId, onExtracted }: { go: (v: string) => voi
     setUploading(true)
     setError(null)
     try {
+      if (onImageCaptured) {
+        try {
+          onImageCaptured(await fileToThumbnailBase64(file))
+        } catch { /* thumbnail is best-effort, never block the actual extraction */ }
+      }
       const form = new FormData()
       form.append('inspectionId', inspectionId)
       form.append('image', file)
@@ -402,11 +414,13 @@ function MissingFieldResolver({ inspectionId, name, onResolved }: { inspectionId
   </div>
 }
 
-function ExtractionView({ go, inspectionId, fields, setFields }: {
+function ExtractionView({ go, inspectionId, fields, setFields, isImported, setIsImported }: {
   go: (v: string) => void
   inspectionId: string | null
   fields: Record<string, FieldRecord>
   setFields: (f: Record<string, FieldRecord>) => void
+  isImported: boolean
+  setIsImported: (v: boolean) => void
 }) {
   const entries = Object.entries(fields)
   const missingCount = entries.filter(([, f]) => f.status === 'missing').length
@@ -460,7 +474,15 @@ function ExtractionView({ go, inspectionId, fields, setFields }: {
           </div>
         </div>
       })}
-      <div className="human-note"><UserRound size={15} /><span><b>Human verification required</b>AI suggestions are never final findings.</span></div>
+      <div className="human-note"><UserRound size={15} /><span><b>Human verification required</b>  AI suggestions are never final findings.</span></div>
+      {/* NEW: explicit imported-product toggle. Country-of-origin presence
+          alone was too fragile a signal for is_imported (a domestic label
+          can legitimately mention a raw-material origin), so this is a
+          direct officer decision instead of an inferred heuristic. */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0', fontSize: 13 }}>
+        <input type="checkbox" checked={isImported} onChange={(e) => setIsImported(e.target.checked)} />
+        This is an imported product (requires country of origin under Rule 6)
+      </label>
       <button className="button primary full" onClick={() => go('analysis')} disabled={missingCount > 0}>
         {missingCount > 0 ? `Resolve ${missingCount} field(s) to continue` : 'Confirm & run compliance check'} <ArrowRight size={16} />
       </button>
@@ -491,10 +513,10 @@ function AnalysisView({ go, declaration, onResult }: { go: (v: string) => void; 
   return <div className="page-content analysis-page">
     <div className="page-heading center-heading"><div><div className="eyebrow"><span className="pulse" /> RULE ENGINE / PROCESSING</div><h1>Running compliance analysis</h1><p>AI extracts. Deterministic rules validate. You decide.</p></div></div>
     <ProgressSteps active={3} />
-    <div className="analysis-layout">
-      <aside className="panel engine-panel" style={{ marginTop: 20 }}>
+    <div className="analysis-layout" style={{ display: 'flex', justifyContent: 'center' }}>
+      <aside className="panel engine-panel" style={{ marginTop: 20, maxWidth: 560, width: '100%' }}>
         <div className="engine-title"><span className="ai-orb"><BrainCircuit size={20} /></span><div><div className="eyebrow purple-text">AI + RULE ENGINE</div><h3>Explainable compliance</h3></div></div>
-        <div className="engine-disclaimer"><Info size={15} /><p>AI identifies declarations. The configured rule engine performs the validation — not a generative model.</p></div>
+        <div className="engine-disclaimer"><Info size={15} /><p>AI identifies declarations. The configured rule engine performs the validation — not a generative model. It also resolves which dated rule version applies to this product before checking it.</p></div>
         {error && <div className="engine-disclaimer" style={{ borderColor: '#ef4444', color: '#ef4444' }}><AlertTriangle size={15} /><p>{error}</p></div>}
         <button className="button primary full" onClick={runAnalysis} disabled={running}>{running ? 'Finalizing analysis...' : 'View compliance result'} <ArrowRight size={16} /></button>
       </aside>
@@ -502,18 +524,205 @@ function AnalysisView({ go, declaration, onResult }: { go: (v: string) => void; 
   </div>
 }
 
-function ResultView({ go, result }: { go: (v: string) => void; result: ComplianceResult | null }) {
+// ---------------------------------------------------------------------------
+// RESULT — now also exposes: which dated rule version was applied (and why),
+// a PDF export of this exact result, and a disabled "Pass to Risk
+// Intelligence" placeholder (per your note, that module comes later).
+// ---------------------------------------------------------------------------
+function ResultView({ go, result, declaration, inspectionMeta }: {
+  go: (v: string) => void
+  result: ComplianceResult | null
+  declaration: ProductDeclaration
+  inspectionMeta: { inspectionId?: string; premisesName?: string; location?: string; inspectionType?: string }
+}) {
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  const exportPdf = async () => {
+    if (!result) return
+    setExporting(true)
+    setExportError(null)
+    try {
+      const res = await fetch('/api/report/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...inspectionMeta, declaration, result }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'PDF export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inspection-${inspectionMeta.inspectionId || 'report'}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : 'PDF export failed.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!result) {
     return <div className="page-content"><div className="empty-state panel"><h3>No result yet</h3><p>Run a compliance analysis first.</p><button className="button secondary" onClick={() => go('inspection')}>Start an inspection</button></div></div>
   }
   const score = Math.min(100, Math.max(0, result.score))
   const statusTone = result.status === 'COMPLIANT' ? 'green' : result.status === 'NON-COMPLIANT' ? 'red' : 'amber'
   return <div className="page-content">
-    <div className="page-heading"><div><div className="eyebrow">INSPECTION RESULT</div><h1>Compliance result</h1></div><div className="heading-actions"><button className="button secondary" onClick={() => go('evidence')}><Eye size={16} /> View evidence</button><button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button></div></div>
+    <div className="page-heading">
+      <div><div className="eyebrow">INSPECTION RESULT</div><h1>Compliance result</h1></div>
+      <div className="heading-actions">
+        <button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button>
+      </div>
+    </div>
+    {exportError && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 10 }}>{exportError}</p>}
+    {result.appliedRuleVersion && (
+      <div className="panel" style={{ padding: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <ShieldCheck size={16} />
+        <div>
+          <strong style={{ display: 'block', fontSize: 13 }}>{result.appliedRuleVersion.label}</strong>
+          <small style={{ color: '#64748b' }}>{result.appliedRuleVersion.reason}</small>
+        </div>
+      </div>
+    )}
     <div className="result-overview">
       <section className="panel score-panel"><div className="score-ring"><div><strong>{score}</strong><small>/ 100</small></div></div><div><Badge tone={statusTone}>{result.status}</Badge><p>{result.violations.length === 0 ? 'All mandatory Legal Metrology rules satisfied.' : `${result.violations.length} finding(s) require officer review.`}</p></div></section>
     </div>
     {result.violations.length > 0 && <div className="violation-grid">{result.violations.map((v) => <div className={`violation-card ${v.tag === 'CRITICAL' ? 'red' : 'amber'}`} key={v.title}><Badge tone={v.tag === 'CRITICAL' ? 'red' : 'amber'}>{v.tag}</Badge><h3>{v.title}</h3><p>{v.description}</p></div>)}</div>}
+  </div>
+}
+
+// A tiny client-side downscale so the stored "thumbnail" stays small — we
+// never persist the full-resolution capture, only this preview, since the
+// only thing it's used for later is the Inspections card + detail view.
+const fileToThumbnailBase64 = (f: File, maxDim = 480, quality = 0.7): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(f)
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = reject
+    img.src = url
+  })
+
+function ProfileView({ user }: { user: { name?: string | null; role?: string | null } }) {
+  return <div className="page-content narrow">
+    <div className="page-heading"><div><div className="eyebrow">ACCOUNT</div><h1>Profile</h1><p>Officer profile details.</p></div></div>
+    <div className="empty-state panel">
+      <div className="empty-icon"><UserRound size={25} /></div>
+      <h3>Coming soon</h3>
+      <p>Profile details for {user.name || 'this officer'} will appear here.</p>
+    </div>
+  </div>
+}
+
+function InspectionHistoryView({ onSelect }: { onSelect: (insp: any) => void }) {
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    fetch('/api/inspections')
+      .then((res) => { if (!res.ok) throw new Error('Failed to load inspections'); return res.json() })
+      .then((data) => { if (!cancelled) setItems(data.inspections || []) })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load inspections') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  return <div className="page-content">
+    <div className="page-heading"><div><div className="eyebrow">CASE REPOSITORY</div><h1>Inspections</h1><p>Every case you've saved. Tap one to view the full record.</p></div></div>
+    {loading && <p style={{ color: '#64748b', fontSize: 12 }}>Loading inspections...</p>}
+    {error && <p style={{ color: '#ef4444', fontSize: 12 }}>{error}</p>}
+    {!loading && !error && items.length === 0 && <div className="empty-state panel"><h3>No inspections yet</h3><p>Saved cases will show up here.</p></div>}
+    <div className="inspection-card-grid">
+      {items.map((insp) => (
+        <button key={insp._id} className="inspection-card" onClick={() => onSelect(insp)}>
+          <div className="inspection-card-img">
+            {insp.capturedImageUrl ? <img src={insp.capturedImageUrl} alt={insp.declaration?.product_name || 'Product'} /> : <Box size={22} />}
+          </div>
+          <div className="inspection-card-body">
+            <strong>{insp.declaration?.product_name || 'Unnamed product'}</strong>
+            <small>{insp.passedToSeniorOfficer ? 'Passed to senior officer' : 'Saved'}</small>
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
+}
+
+function InspectionDetailView({ inspectionId, onBack, onGenerateReport, onEdit }: {
+  inspectionId: string | null
+  onBack: () => void
+  onGenerateReport: (insp: any) => void
+  onEdit: (insp: any) => void
+}) {
+  const [insp, setInsp] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!inspectionId) return
+    let cancelled = false
+    setLoading(true)
+    fetch(`/api/inspections/${inspectionId}`)
+      .then((res) => { if (!res.ok) throw new Error('Failed to load inspection'); return res.json() })
+      .then((data) => { if (!cancelled) setInsp(data.inspection) })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load inspection') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [inspectionId])
+
+  if (loading) return <div className="page-content"><p style={{ color: '#64748b', fontSize: 12 }}>Loading...</p></div>
+  if (error || !insp) return <div className="page-content"><div className="empty-state panel"><h3>Couldn't load this inspection</h3><p>{error}</p><button className="button secondary" onClick={onBack}>Back to inspections</button></div></div>
+
+  const entries = Object.entries(insp.fields || {}) as [string, FieldRecord][]
+
+  return <div className="page-content">
+    <div className="page-heading">
+      <div><div className="eyebrow">CASE RECORD</div><h1>{insp.declaration?.product_name || 'Inspection record'}</h1><p>{insp.premisesName} • {insp.location?.address}</p></div>
+      <div className="heading-actions">
+        <button className="button secondary" onClick={onBack}>Back</button>
+        <button className="button secondary" onClick={() => onEdit(insp)}><Edit3 size={16} /> Edit</button>
+        <button className="button primary" onClick={() => onGenerateReport(insp)}><FileText size={16} /> Generate report</button>
+      </div>
+    </div>
+    {insp.capturedImageUrl && (
+      <div className="panel" style={{ padding: 12, marginBottom: 16 }}>
+        <img src={insp.capturedImageUrl} alt="Captured package" style={{ maxHeight: 320, borderRadius: 8 }} />
+      </div>
+    )}
+    <section className="panel declaration-form">
+      <div className="eyebrow">STRUCTURED DECLARATIONS</div>
+      <h3>Saved record</h3>
+      {entries.map(([name, f]) => (
+        <div className="declaration-field" key={name}>
+          <label>{FIELD_LABELS[name] || name}<span>{f.status === 'manual' ? 'entered manually' : f.status === 'not_applicable' ? 'not applicable' : f.status === 'missing' ? 'missing' : `${Math.round((f.confidence || 0) * 100)}% confidence`}</span></label>
+          <div><input value={f.status === 'not_applicable' ? 'Not applicable' : f.value || ''} readOnly /></div>
+        </div>
+      ))}
+    </section>
+    {insp.complianceResult && (
+      <div className="panel" style={{ padding: 16, marginTop: 16 }}>
+        <strong>Last compliance result: </strong>
+        <Badge tone={insp.complianceResult.status === 'COMPLIANT' ? 'green' : insp.complianceResult.status === 'NON-COMPLIANT' ? 'red' : 'amber'}>{insp.complianceResult.status}</Badge>
+        <span style={{ marginLeft: 8, color: '#64748b', fontSize: 12 }}>Score {insp.complianceResult.score}/100</span>
+      </div>
+    )}
+    <div style={{ marginTop: 12 }}>
+      {insp.passedToSeniorOfficer ? <Badge tone="green">Passed to senior officer</Badge> : <Badge tone="amber">Not yet passed</Badge>}
+    </div>
   </div>
 }
 
@@ -535,11 +744,39 @@ function GenericModule({ view, go }: { view: string; go: (v: string) => void }) 
   </div>
 }
 
-// ReportView now takes the actual "save everything to the DB" handler as a
-// prop from NiyamAIApp instead of referencing outer-scope variables that
-// don't exist at module level (that was the source of the earlier error).
-function ReportView({ go, onSave, saving }: { go: (v: string) => void; onSave: () => void; saving: boolean }) {
-  return <div className="page-content"><div className="page-heading"><div><div className="eyebrow">CASE CLOSURE</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div><div className="heading-actions"><button className="button secondary"><Download size={16} /> Generate PDF</button><button className="button primary" onClick={onSave} disabled={saving}><ShieldCheck size={16} /> {saving ? 'Saving...' : 'Save case'}</button></div></div></div>
+// ReportView now also wires "Generate PDF" to the same export handler as
+// ResultView (passed down as a prop), so the officer can export from either
+// screen without duplicating the fetch/download logic.
+function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveError, role, isPassed, onPass, passing, passError }: {
+  go: (v: string) => void
+  onSave: () => void
+  saving: boolean
+  isSaved: boolean
+  onExportPdf: () => void
+  exporting: boolean
+  saveError: string | null
+  role?: string | null
+  isPassed: boolean
+  onPass: () => void
+  passing: boolean
+  passError: string | null
+}) {
+  return <div className="page-content">
+    <div className="page-heading">
+      <div><div className="eyebrow">CASE CLOSURE</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div>
+      <div className="heading-actions">
+        <button className="button secondary" onClick={onExportPdf} disabled={exporting}><Download size={16} /> {exporting ? 'Generating...' : 'Generate PDF'}</button>
+        <button className="button primary" onClick={onSave} disabled={saving || isSaved}><ShieldCheck size={16} /> {saving ? 'Saving...' : isSaved ? 'Case saved' : 'Save case'}</button>
+        {role === 'executive_officer' && (
+          <button className="button secondary" onClick={onPass} disabled={!isSaved || passing || isPassed}>
+            <ArrowRight size={16} /> {passing ? 'Passing...' : isPassed ? 'Passed to Senior Officer' : 'Pass to Senior Officer'}
+          </button>
+        )}
+      </div>
+    </div>
+    {saveError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{saveError}</p>}
+    {passError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{passError}</p>}
+  </div>
 }
 
 export default function NiyamAIApp({ initialView = 'overview' }: { initialView?: string }) {
@@ -550,6 +787,12 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [mongoInspectionId, setMongoInspectionId] = useState<string | null>(null)
+  const [capturedImageBase64, setCapturedImageBase64] = useState<string | null>(null)
+  const [isPassedToSenior, setIsPassedToSenior] = useState(false)
+  const [passingToSenior, setPassingToSenior] = useState(false)
+  const [passError, setPassError] = useState<string | null>(null)
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null)
 
   // Nothing is written to Mongo until handleSaveCase runs at the end.
   // `inspectionDraft` holds the form details from InspectionView in memory.
@@ -558,51 +801,217 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [inspectionDraft, setInspectionDraft] = useState<InspectionDraft | null>(null)
   const [inspectionId, setInspectionId] = useState<string | null>(null)
   const [fields, setFields] = useState<Record<string, FieldRecord>>({})
+  const [isImported, setIsImported] = useState(false)
   const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null)
   const [savingCase, setSavingCase] = useState(false)
+  const [isCaseSaved, setIsCaseSaved] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
+
+  const MANDATORY_FIELD_KEYS = ['product_name', 'company_name', 'net_quantity', 'mrp', 'manufacturer', 'manufacturing_date', 'consumer_care']
+
+  const handleExtracted = (raw: Record<string, FieldRecord>) => {
+    const withDefaults = { ...raw }
+    for (const key of MANDATORY_FIELD_KEYS) {
+      if (!withDefaults[key]) {
+        withDefaults[key] = { value: null, confidence: 0, status: 'missing', reason: 'Not returned by extraction service' }
+      }
+    }
+    setFields(withDefaults)
+  }
 
   const go = (v: string) => { setActive(v); setMobileOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
-  // Builds the ProductDeclaration shape the existing rule engine expects
-  // out of whatever's currently resolved in `fields` (extracted or manual).
+  // Normalizes common OCR unit spellings ("gm", "gms", "ltr"...) onto the
+  // canonical units the rule engine's VALID_UNITS list actually recognises.
+  const normalizeUnit = (raw: string) => {
+    const map: Record<string, string> = {
+      gm: 'g', gms: 'g', gram: 'g', grams: 'g',
+      kg: 'kg', kgs: 'kg',
+      ml: 'ml',
+      l: 'l', ltr: 'l', litre: 'l', litres: 'l', liter: 'l', liters: 'l',
+    }
+    return map[raw.toLowerCase()] || raw.toLowerCase()
+  }
+
+  const parseNum = (v?: string | number | null): number | undefined => {
+    if (v === null || v === undefined || v === '') return undefined
+    const s = typeof v === 'number' ? String(v) : String(v)
+    const match = s.match(/\d+(\.\d+)?/)
+    const n = match ? Number(match[0]) : NaN
+    return Number.isFinite(n) && n > 0 ? n : undefined
+  }
+
+  // Builds the ProductDeclaration shape the rule engine expects out of
+  // whatever's currently resolved in `fields` (extracted or manual).
+  //
+  // IMPORTANT FIX: previously this hardcoded `product_name` to 'Unknown
+  // product' and font_height_mm/principal_display_panel_area_cm2 to `0`.
+  // That silently made the mandatory-presence check always pass even when
+  // the product name was genuinely missing, and made the font-height check
+  // always fail (0mm is always < the minimum). Missing values are now left
+  // `undefined` so the rule engine treats them as actually missing/unknown,
+  // exactly like the ExtractionView "missing field" resolver already does
+  // for every other declaration.
+  const netQtyRaw = fields.net_quantity?.value || ''
+  const unitMatch = /([a-zA-Z]+)\s*$/.exec(netQtyRaw.trim())
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const declaration: ProductDeclaration = {
-    product_name: fields.product_name?.value || 'Unknown product',
-    net_quantity: { value: Number(fields.net_quantity?.value?.replace(/[^\d.]/g, '')) || 0, unit: 'g', font_height_mm: 0, principal_display_panel_area_cm2: 0 },
-    mrp: { amount: Number(fields.mrp?.value?.replace(/[^\d.]/g, '')) || 0, currency: '₹' },
-    manufacturer: fields.manufacturer?.value || '',
-    packed_date: fields.manufacturing_date?.value || '',
-    consumer_care: fields.consumer_care?.value || '',
-  } as ProductDeclaration
+    product_name: fields.product_name?.value || undefined,
+    company_name: fields.company_name?.value || undefined,
+    net_quantity: {
+      value: parseNum(netQtyRaw) || 0,
+      unit: normalizeUnit(unitMatch?.[1] || 'g'),
+      font_height_mm: parseNum(fields.font_height_mm?.value),
+      principal_display_panel_area_cm2: parseNum(fields.principal_display_panel_area_cm2?.value),
+    },
+    mrp: { amount: parseNum(fields.mrp?.value) || 0, currency: '₹' },
+    manufacturer: fields.manufacturer?.value || undefined,
+    packed_date: fields.manufacturing_date?.value || undefined,
+    consumer_care: fields.consumer_care?.value || undefined,
+    country_of_origin: fields.country_of_origin?.value || undefined,
+    is_imported: isImported,
+  }
+
+  const inspectionMeta = {
+    inspectionId: inspectionId || undefined,
+    premisesName: inspectionDraft?.premisesName,
+    location: inspectionDraft?.location?.address,
+    inspectionType: inspectionDraft?.inspectionType,
+  }
+
+  // Shared PDF export handler — used by both ResultView and ReportView so
+  // there's exactly one place that talks to /api/report/pdf.
+  const exportPdf = async () => {
+    if (!complianceResult) return
+    setExportingPdf(true)
+    try {
+      const res = await fetch('/api/report/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...inspectionMeta, declaration, result: complianceResult }),
+      })
+      if (!res.ok) throw new Error('PDF export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `inspection-${inspectionMeta.inspectionId || 'report'}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
 
   const handleLogout = async () => { setLoggingOut(true); await signOut({ callbackUrl: '/login', redirect: true }) }
 
   // The single point where the inspection actually gets persisted — only
   // once the officer has been through inspection details, capture,
   // extraction, analysis and result, and explicitly clicks "Save case".
-  const handleSaveCase = async () => {
-    if (!inspectionDraft) return
+  // Now also sends the resolved `declaration` snapshot alongside `fields`,
+  // so history/PDF re-export later doesn't have to re-derive it.
+    const handleSaveCase = async () => {
+    if (!inspectionDraft || isCaseSaved) return
     setSavingCase(true)
+    setSaveError(null)
     try {
-      await fetch('/api/inspections', {
-        method: 'POST',
+      const endpoint = mongoInspectionId ? `/api/inspections/${mongoInspectionId}` : '/api/inspections'
+      const method = mongoInspectionId ? 'PATCH' : 'POST'
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...inspectionDraft, fields, complianceResult }),
+        body: JSON.stringify({ ...inspectionDraft, fields, declaration, complianceResult, capturedImageUrl: capturedImageBase64 }),
       })
-      go('history')
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error || `Save failed with status ${res.status}`)
+      }
+      const saved = await res.json().catch(() => null)
+      if (saved?.inspection?._id) setMongoInspectionId(saved.inspection._id)
+      setIsCaseSaved(true)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save inspection.')
     } finally {
       setSavingCase(false)
     }
   }
 
+  const handlePassToSenior = async () => {
+    if (!mongoInspectionId || !isCaseSaved || isPassedToSenior) return
+    setPassingToSenior(true)
+    setPassError(null)
+    try {
+      const res = await fetch(`/api/inspections/${mongoInspectionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passedToSeniorOfficer: true }),
+      })
+      if (!res.ok) throw new Error('Failed to pass to senior officer.')
+      setIsPassedToSenior(true)
+    } catch (e) {
+      setPassError(e instanceof Error ? e.message : 'Failed to pass to senior officer.')
+    } finally {
+      setPassingToSenior(false)
+    }
+  }
+
+  const handleLoadForEdit = (insp: any) => {
+    setMongoInspectionId(insp._id)
+    setFields(insp.fields || {})
+    setIsImported(!!insp.declaration?.is_imported)
+    setInspectionDraft({ inspectionType: insp.inspectionType || 'Physical store', premisesName: insp.premisesName || '', notes: insp.notes || '', location: insp.location || { address: '' } })
+    setInspectionId(insp.inspectionId || crypto.randomUUID())
+    setCapturedImageBase64(insp.capturedImageUrl || null)
+    setComplianceResult(null)
+    setIsCaseSaved(false)
+    setIsPassedToSenior(false)
+    go('extraction')
+  }
+
+  const handleLoadForReport = (insp: any) => {
+    setMongoInspectionId(insp._id)
+    setFields(insp.fields || {})
+    setIsImported(!!insp.declaration?.is_imported)
+    setComplianceResult(insp.complianceResult || null)
+    setInspectionDraft({ inspectionType: insp.inspectionType || 'Physical store', premisesName: insp.premisesName || '', notes: insp.notes || '', location: insp.location || { address: '' } })
+    setInspectionId(insp.inspectionId || crypto.randomUUID())
+    setCapturedImageBase64(insp.capturedImageUrl || null)
+    setIsCaseSaved(true)
+    setIsPassedToSenior(!!insp.passedToSeniorOfficer)
+    go('report')
+  }
+
   let view: React.ReactNode
   if (active === 'overview') view = <Dashboard go={go} />
-  else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => { setInspectionDraft(draft); setInspectionId(crypto.randomUUID()) }} />
-  else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={setFields} />
-  else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} />
-  else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={setComplianceResult} />
-  else if (active === 'result') view = <ResultView go={go} result={complianceResult} />
-  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} />
+    else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => {
+    setInspectionDraft(draft)
+    setInspectionId(crypto.randomUUID())
+    setIsCaseSaved(false)
+    setMongoInspectionId(null)
+    setCapturedImageBase64(null)
+    setIsPassedToSenior(false)
+    setComplianceResult(null)
+    setFields({})
+  }} />
+  else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={handleExtracted} onImageCaptured={setCapturedImageBase64} />
+  else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} isImported={isImported} setIsImported={setIsImported} />
+  else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={(result) => { setComplianceResult(result); setIsCaseSaved(false); setIsPassedToSenior(false) }} />
+  else if (active === 'result') view = <ResultView go={go} result={complianceResult} declaration={declaration} inspectionMeta={inspectionMeta} />
+  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} />
+  else if (active === 'profile') view = <ProfileView user={user} />
+  else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
+  else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />
   else view = <GenericModule view={active} go={go} />
+
+  const mobileNavItems = (user.role === 'executive_officer'
+    ? [['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['profile', UserRound, 'Profile']]
+    : [['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['evidence', Fingerprint, 'Evidence'], ['profile', UserRound, 'Profile']]
+  ) as [string, React.ElementType, string][]
 
   return (
     <div className="app-shell">
@@ -611,7 +1020,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
         <Topbar onMenu={() => setMobileOpen(true)} onLogout={() => setShowLogoutModal(true)} user={user} />
         <main>{view}</main>
         <div className="mobile-nav">
-          {([['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['evidence', Fingerprint, 'Evidence'], ['profile', UserRound, 'Profile']] as [string, React.ElementType, string][]).map(([v, Icon, label]) => (
+          {mobileNavItems.map(([v, Icon, label]) => (
             <button className={active === v ? 'active' : ''} key={v} onClick={() => go(v)}><Icon size={19} /><span>{label}</span></button>
           ))}
         </div>
