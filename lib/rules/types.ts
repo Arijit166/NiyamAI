@@ -2,6 +2,7 @@
 // This mirrors what that layer is expected to eventually output.
 export interface ProductDeclaration {
   product_name?: string
+  company_name?: string
   net_quantity?: {
     value: number
     unit: string

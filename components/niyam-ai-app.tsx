@@ -30,6 +30,8 @@ const FIELD_LABELS: Record<string, string> = {
   consumer_care: 'Consumer care',
   country_of_origin: 'Country of origin',
   mfg_license_no: 'Mfg. license no.',
+  mrp_tax_inclusive: 'MRP inclusive of all taxes',
+  company_name: 'Company name',
   ingredients: 'Ingredients',
   product_name: 'Product name',
   // NEW: needed by the rule engine's font-height (Table-I) check. The
@@ -568,10 +570,6 @@ function ResultView({ go, result, declaration, inspectionMeta }: {
     <div className="page-heading">
       <div><div className="eyebrow">INSPECTION RESULT</div><h1>Compliance result</h1></div>
       <div className="heading-actions">
-        <button className="button secondary" onClick={() => go('evidence')}><Eye size={16} /> View evidence</button>
-        <button className="button secondary" onClick={exportPdf} disabled={exporting}><Download size={16} /> {exporting ? 'Exporting...' : 'Export PDF'}</button>
-        {/* Placeholder only — wire this up when Risk Intelligence exists. */}
-        <button className="button ghost" disabled title="Coming soon"><Radar size={16} /> Pass to Risk Intelligence</button>
         <button className="button primary" onClick={() => go('report')}><FileText size={16} /> Generate report</button>
       </div>
     </div>
@@ -613,10 +611,11 @@ function GenericModule({ view, go }: { view: string; go: (v: string) => void }) 
 // ReportView now also wires "Generate PDF" to the same export handler as
 // ResultView (passed down as a prop), so the officer can export from either
 // screen without duplicating the fetch/download logic.
-function ReportView({ go, onSave, saving, onExportPdf, exporting, saveError }: {
+function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveError }: {
   go: (v: string) => void
   onSave: () => void
   saving: boolean
+  isSaved: boolean
   onExportPdf: () => void
   exporting: boolean
   saveError: string | null
@@ -626,7 +625,7 @@ function ReportView({ go, onSave, saving, onExportPdf, exporting, saveError }: {
       <div><div className="eyebrow">CASE CLOSURE</div><h1>Generate inspection report</h1><p>Evidence-based report preview ready for officer review.</p></div>
       <div className="heading-actions">
         <button className="button secondary" onClick={onExportPdf} disabled={exporting}><Download size={16} /> {exporting ? 'Generating...' : 'Generate PDF'}</button>
-        <button className="button primary" onClick={onSave} disabled={saving}><ShieldCheck size={16} /> {saving ? 'Saving...' : 'Save case'}</button>
+        <button className="button primary" onClick={onSave} disabled={saving || isSaved}><ShieldCheck size={16} /> {saving ? 'Saving...' : isSaved ? 'Case saved' : 'Save case'}</button>
       </div>
     </div>
     {saveError && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 10 }}>{saveError}</p>}
@@ -652,9 +651,10 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [isImported, setIsImported] = useState(false)
   const [complianceResult, setComplianceResult] = useState<ComplianceResult | null>(null)
   const [savingCase, setSavingCase] = useState(false)
+  const [isCaseSaved, setIsCaseSaved] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
 
-  const MANDATORY_FIELD_KEYS = ['product_name', 'net_quantity', 'mrp', 'manufacturer', 'manufacturing_date', 'consumer_care']
+  const MANDATORY_FIELD_KEYS = ['product_name', 'company_name', 'net_quantity', 'mrp', 'manufacturer', 'manufacturing_date', 'consumer_care']
 
   const handleExtracted = (raw: Record<string, FieldRecord>) => {
     const withDefaults = { ...raw }
@@ -705,6 +705,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
 
   const declaration: ProductDeclaration = {
     product_name: fields.product_name?.value || undefined,
+    company_name: fields.company_name?.value || undefined,
     net_quantity: {
       value: parseNum(netQtyRaw) || 0,
       unit: normalizeUnit(unitMatch?.[1] || 'g'),
@@ -762,7 +763,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   // Now also sends the resolved `declaration` snapshot alongside `fields`,
   // so history/PDF re-export later doesn't have to re-derive it.
   const handleSaveCase = async () => {
-    if (!inspectionDraft) return
+    if (!inspectionDraft || isCaseSaved) return
     setSavingCase(true)
     setSaveError(null)
     try {
@@ -775,7 +776,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
         const body = await res.json().catch(() => null)
         throw new Error(body?.error || `Save failed with status ${res.status}`)
       }
-      go('history')
+      setIsCaseSaved(true)
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save inspection.')
     } finally {
@@ -785,12 +786,12 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
 
   let view: React.ReactNode
   if (active === 'overview') view = <Dashboard go={go} />
-  else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => { setInspectionDraft(draft); setInspectionId(crypto.randomUUID()) }} />
+  else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => { setInspectionDraft(draft); setInspectionId(crypto.randomUUID()); setIsCaseSaved(false) }} />
   else if (active === 'capture') view = <CaptureView go={go} inspectionId={inspectionId} onExtracted={handleExtracted} />
   else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} isImported={isImported} setIsImported={setIsImported} />
   else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={setComplianceResult} />
   else if (active === 'result') view = <ResultView go={go} result={complianceResult} declaration={declaration} inspectionMeta={inspectionMeta} />
-  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} />
+  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} />
   else view = <GenericModule view={active} go={go} />
 
   return (

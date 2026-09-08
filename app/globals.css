@@ -517,6 +517,13 @@ main {
   transition: .15s;
 }
 
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .button.primary {
   background: var(--cyan);
   color: #051119;
