@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     await connectDB()
-    const inspections = await Inspection.find().sort({ createdAt: -1 }).limit(100).lean()
+    const inspections = await Inspection.find().sort({ createdAt: -1 }).limit(100).lean({ flattenMaps: true })
     return NextResponse.json({ inspections })
   } catch (err) {
     console.error('[inspections] list failed:', err)
