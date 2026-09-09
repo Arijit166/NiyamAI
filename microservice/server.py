@@ -91,7 +91,7 @@ async def extract_label(
         tmp_path = Path(tmp.name)
 
     try:
-        font_size = float(marker_size_mm) if marker_size_mm and marker_size_mm > 0 else 1.0
+        font_size = float(marker_size_mm) if marker_size_mm and marker_size_mm > 0 else 20.0
         result, annotated_img = pipeline.process_file(
             tmp_path,
             font_config={"marker_size_mm": font_size},

@@ -59,6 +59,7 @@ Usage:
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
 
+import re
 import cv2
 import numpy as np
 
@@ -886,18 +887,60 @@ def _find_detection_for_value(
     """
     if value is None:
         return None
-    value_norm = str(value).strip().lower()
+
+    if isinstance(value, dict):
+        value_str = str(value.get("normalized") or value.get("value") or value.get("raw") or "")
+    else:
+        value_str = str(value)
+
+    value_norm = value_str.strip().lower()
     if not value_norm or value_norm == "unknown":
         return None
 
+    # 1. Exact field recovery tag
     for d in detections:
         if d.get("roi_recovered_for") == field_name:
             return d
 
+    # 2. Exact clean_text match
     for d in detections:
         if str(d.get("clean_text", "")).strip().lower() == value_norm:
             return d
 
+    # 3. Compact whitespace & punctuation match (handles e.g. "200 g" vs "200g", "Rs. 100" vs "Rs.100")
+    val_compact = re.sub(r"[\s\.:\-_,/]+", "", value_norm)
+    if val_compact:
+        for d in detections:
+            d_compact = re.sub(r"[\s\.:\-_,/]+", "", str(d.get("clean_text", "")).lower())
+            if d_compact and (val_compact == d_compact or val_compact in d_compact or d_compact in val_compact):
+                return d
+
+    # 4. Field-specific numeric quantity matching for net_quantity
+    if field_name == "net_quantity":
+        num_m = re.search(r"\d+(?:\.\d+)?", value_norm)
+        if num_m:
+            num_str = num_m.group(0)
+            # Find detection containing this quantity number and standard unit/quantity keywords
+            for d in detections:
+                t = str(d.get("clean_text", "")).lower()
+                if num_str in t and any(kw in t for kw in ["g", "gm", "kg", "ml", "l", "ltr", "net", "qty", "wt", "weight", "quantity", "n"]):
+                    return d
+            for d in detections:
+                t = str(d.get("clean_text", "")).lower()
+                if num_str in t:
+                    return d
+
+    # 5. Field-specific numeric matching for mrp
+    if field_name == "mrp":
+        num_m = re.search(r"\d+(?:\.\d+)?", value_norm)
+        if num_m:
+            num_str = num_m.group(0)
+            for d in detections:
+                t = str(d.get("clean_text", "")).lower()
+                if num_str in t and any(kw in t for kw in ["mrp", "rs", "₹", "inr", "/-", "incl"]):
+                    return d
+
+    # 6. General substring match
     for d in detections:
         text = str(d.get("clean_text", "")).strip().lower()
         if text and (value_norm in text or text in value_norm):

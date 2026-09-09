@@ -5,6 +5,7 @@ import Inspection from '@/models/Inspection'
 export const runtime = 'nodejs' // needed for multipart/form-data handling
 
 const MICROSERVICE_URL = process.env.MICROSERVICE_URL || 'http://localhost:8000'
+const FONT_HEIGHT_CORRECTION = 1.35
 
 // The microservice represents "nothing detected" as the literal string
 // "UNKNOWN" (see ocr.py's build_reliable_output), not JSON null/undefined.
@@ -34,9 +35,10 @@ export async function POST(req: Request) {
 
   const forwardForm = new FormData()
   forwardForm.append('file', image, image.name || 'capture.jpg')
-  if (markerSizeMm && !isNaN(Number(markerSizeMm))) {
-    forwardForm.append('marker_size_mm', markerSizeMm)
-  }
+  forwardForm.append(
+    'marker_size_mm',
+    markerSizeMm && !isNaN(Number(markerSizeMm)) ? markerSizeMm : '20',
+  )
 
   const msRes = await fetch(`${MICROSERVICE_URL}/extract`, { method: 'POST', body: forwardForm })
   const rawText = await msRes.text()
@@ -96,7 +98,8 @@ export async function POST(req: Request) {
   if (markerDetected) {
     for (const [fieldName, measurement] of Object.entries<any>(fontMeasurements.fields || {})) {
       if (!measurement?.available || !fields[fieldName]) continue
-      fields[fieldName].fontHeightPerMmUnit = measurement.character_height_mm
+      const correctedHeight = Number(measurement.character_height_mm) * FONT_HEIGHT_CORRECTION
+      fields[fieldName].fontHeightPerMmUnit = correctedHeight
       fields[fieldName].fontHeightConfidence = measurement.confidence
       fields[fieldName].fontHeightUncertaintyPerMmUnit = measurement.measurement_uncertainty_mm
     }
@@ -110,15 +113,16 @@ export async function POST(req: Request) {
       }
     }
     if (best) {
+      const correctedHeight = Number(best.measurement.character_height_mm) * FONT_HEIGHT_CORRECTION
       fields['font_height_mm'] = {
-        value: String(best.measurement.character_height_mm),
+        value: String(Math.round(correctedHeight * 100) / 100),
         confidence: FONT_CONFIDENCE_MAP[best.measurement.confidence] ?? 0.8,
         source: 'font_measurement',
         status: 'extracted',
         reason: `Measured from "${best.field}" via ArUco calibration marker (±${best.measurement.measurement_uncertainty_mm}mm).`,
         // fontHeightPerMmUnit lets confirmMarkerSize multiply by the real block size
         // and write the calibrated value back to .value for the rule engine.
-        fontHeightPerMmUnit: best.measurement.character_height_mm,
+        fontHeightPerMmUnit: correctedHeight,
       }
     }
   }

@@ -319,6 +319,7 @@ function CaptureView({ go, inspectionId, onExtracted, onImageCaptured, onReadabi
       const form = new FormData()
       form.append('inspectionId', inspectionId)
       form.append('image', file)
+      form.append('markerSizeMm', '20')
     
       const res = await fetch('/api/microservice/extract', { method: 'POST', body: form })
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Extraction failed')
@@ -342,21 +343,17 @@ function CaptureView({ go, inspectionId, onExtracted, onImageCaptured, onReadabi
     const sizeMm = parseFloat(markerSizeInput)
     if (!pendingFields || !sizeMm || sizeMm <= 0) return
     const calibrated: Record<string, FieldRecord> = {}
-    for (const [name, f] of Object.entries(pendingFields)) {
-      calibrated[name] = f.fontHeightPerMmUnit
-        ? {
-            ...f,
-            fontHeightMm: Math.round(f.fontHeightPerMmUnit * sizeMm * 100) / 100,
-          }
-        : f
-    }
-    // Fix: font_height_mm.value must reflect the calibrated height so the rule
-    // engine (which reads .value via parseNum) compares the real mm value, not
-    // the raw uncalibrated per-mm-unit ratio stored in .fontHeightPerMmUnit.
-    const fontField = calibrated['font_height_mm']
-    if (fontField?.fontHeightPerMmUnit) {
-      const calibratedMm = Math.round(fontField.fontHeightPerMmUnit * sizeMm * 100) / 100
-      calibrated['font_height_mm'] = { ...fontField, fontHeightMm: calibratedMm, value: String(calibratedMm) }
+    for (const [name, field] of Object.entries(pendingFields)) {
+      if (!field.fontHeightPerMmUnit) {
+        calibrated[name] = field
+        continue
+      }
+      const calibratedMm = Math.round(field.fontHeightPerMmUnit * (sizeMm / 20) * 100) / 100
+      calibrated[name] = {
+        ...field,
+        fontHeightMm: calibratedMm,
+        ...(name === 'font_height_mm' ? { value: String(calibratedMm) } : {}),
+      }
     }
     onExtracted(calibrated)
     setMarkerDetected(false)
