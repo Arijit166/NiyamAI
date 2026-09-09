@@ -145,6 +145,7 @@ class LabelExtractionPipeline:
         self,
         image_input: Union[str, Path, bytes, np.ndarray],
         filename: str = "in_memory_image.jpg",
+        font_config: Optional[Dict[str, Any]] = None,   # NEW — e.g. {"marker_size_mm": 25.0}
     ) -> Dict[str, Any]:
         # 1. Preprocess
         processed_img, quality_report = preprocess_image(image_input)
@@ -153,7 +154,7 @@ class LabelExtractionPipeline:
                 "metadata": {"filename": filename},
                 "quality": quality_report,
                 "error": quality_report.get("reject_reason"),
-            }
+            }, None
 
         # 2. OCR + LLM cleanup + spatial/regex field capture (ocr.py)
         ocr_payload, annotated_img = self.ocr_processor.process_image(processed_img, filename=filename)
@@ -224,6 +225,7 @@ class LabelExtractionPipeline:
             image=processed_img,
             detections=ocr_payload.get("detections", []),
             structured_data=structured_data,
+            config=font_config,   # NEW — lets the officer's declared block size override the default 20mm
         )
 
         # 8. Assemble final JSON
@@ -248,7 +250,7 @@ class LabelExtractionPipeline:
 
         return final_json, annotated_img
 
-    def process_file(self, image_path: Union[str, Path]) -> Dict[str, Any]:
+    def process_file(self, image_path: Union[str, Path], font_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         image_path = Path(image_path)
-        result, annotated_img = self.process(str(image_path), filename=image_path.name)
+        result, annotated_img = self.process(str(image_path), filename=image_path.name, font_config=font_config)
         return result, annotated_img

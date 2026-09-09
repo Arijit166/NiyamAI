@@ -172,6 +172,19 @@ export function InspectionReportDocument({
           <Text style={[styles.statusBadge, { backgroundColor: tone.bg, color: tone.fg }]}>{result.status}</Text>
         </View>
 
+        {(() => {
+          const fontCheck = result.checks?.find((c) => c.code === 'FONT_HEIGHT' || c.code === 'FONT_HEIGHT_AREA_UNKNOWN')
+          if (!fontCheck) return null
+          return (
+            <>
+              <Text style={styles.sectionTitle}>Numeral / letter height check</Text>
+              <Text style={{ fontSize: 9, color: fontCheck.passed ? '#166534' : '#991b1b', marginBottom: 10 }}>
+                {fontCheck.message}
+              </Text>
+            </>
+          )
+        })()}
+
         <Text style={styles.sectionTitle}>Findings ({result.violations.length})</Text>
         {result.violations.length === 0 && (
           <Text style={{ fontSize: 9, color: '#166534' }}>

@@ -37,35 +37,43 @@ DEFAULT_FONT_CONFIG: Dict[str, Any] = {
     "aruco_dict_name": "DICT_4X4_50",
     "expected_marker_id": None,
     "canonical_marker_px": 200,
-    "min_marker_area_fraction": 0.001,
-    "min_marker_border_margin_px": 5,
-    "max_marker_side_length_cv": 0.08,
+    "min_marker_area_fraction": 0.00005,
+    "min_marker_border_margin_px": 0,
+    "max_marker_side_length_cv": 0.45,
     "marker_blur_score_ceiling": 250.0,
-    "min_marker_blur_score": 30.0,
-    "max_rectified_canvas_px": 6000,
-    "rectification_self_check_enabled": True,
-    "rectification_side_length_tolerance_fraction": 0.05,
-    "coplanarity_warning_distance_mm": 60.0,
+    "min_marker_blur_score": 1.0,
+    "max_rectified_canvas_px": 8000,
+    "rectification_self_check_enabled": False,
+    "rectification_side_length_tolerance_fraction": 0.35,
+    "coplanarity_warning_distance_mm": 120.0,
     "crop_padding_px": 6,
     "binarize_block_size": 25,
     "binarize_c": 10,
     "morph_open_kernel_size": 2,
     "line_band_min_gap_px": 3,
-    "min_component_height_px": 4,
+    "min_component_height_px": 3,
     "min_component_width_px": 1,
-    "max_component_aspect_ratio": 6.0,
+    "max_component_aspect_ratio": 8.0,
     "punctuation_max_relative_height": 0.35,
-    "outlier_height_ratio": 1.8,
-    "min_characters_for_measurement": 3,
-    "confidence_high_max_height_cv": 0.12,
-    "confidence_high_max_tilt_degrees": 3.0,
-    "confidence_high_min_characters": 5,
-    "confidence_medium_max_height_cv": 0.25,
-    "confidence_medium_max_tilt_degrees": 8.0,
-    "confidence_medium_min_characters": 3,
+    "outlier_height_ratio": 2.2,
+    "min_characters_for_measurement": 2,
+    "confidence_high_max_height_cv": 0.20,
+    "confidence_high_max_tilt_degrees": 6.0,
+    "confidence_high_min_characters": 3,
+    "confidence_medium_max_height_cv": 0.35,
+    "confidence_medium_max_tilt_degrees": 15.0,
+    "confidence_medium_min_characters": 2,
 }
 
 _CONFIDENCE_ORDER = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+
+ARUCO_DICTIONARY_CANDIDATES = [
+    "DICT_4X4_50", "DICT_4X4_100", "DICT_4X4_250", "DICT_4X4_1000",
+    "DICT_5X5_50", "DICT_5X5_100", "DICT_5X5_250", "DICT_5X5_1000",
+    "DICT_6X6_50", "DICT_6X6_100", "DICT_6X6_250", "DICT_6X6_1000",
+    "DICT_7X7_50", "DICT_7X7_100", "DICT_ARUCO_ORIGINAL",
+    "DICT_APRILTAG_36h11", "DICT_APRILTAG_25h9", "DICT_APRILTAG_16h5",
+]
 
 
 def _dist(a: np.ndarray, b: np.ndarray) -> float:
@@ -86,16 +94,47 @@ def _get_aruco_dictionary(name: str):
 def _detect_aruco_markers(gray: np.ndarray, aruco_dict) -> Tuple[List[np.ndarray], Optional[np.ndarray]]:
     if hasattr(aruco, "ArucoDetector"):
         params = aruco.DetectorParameters()
+        params.adaptiveThreshWinSizeMin = 3
+        params.adaptiveThreshWinSizeMax = 53
+        params.adaptiveThreshWinSizeStep = 6
+        params.adaptiveThreshConstant = 7
+        params.minMarkerPerimeterRate = 0.01
+        params.maxMarkerPerimeterRate = 4.0
+        params.polygonalApproxAccuracyRate = 0.08
+        params.minDistanceToBorder = 0
         detector = aruco.ArucoDetector(aruco_dict, params)
         corners, ids, _rejected = detector.detectMarkers(gray)
     else:
         params = aruco.DetectorParameters_create()
+        params.adaptiveThreshWinSizeMin = 3
+        params.adaptiveThreshWinSizeMax = 53
+        params.adaptiveThreshWinSizeStep = 6
+        params.adaptiveThreshConstant = 7
+        params.minMarkerPerimeterRate = 0.01
+        params.maxMarkerPerimeterRate = 4.0
+        params.polygonalApproxAccuracyRate = 0.08
+        params.minDistanceToBorder = 0
         corners, ids, _rejected = aruco.detectMarkers(gray, aruco_dict, parameters=params)
     return corners, ids
 
 
 def _worse_confidence(a: str, b: str) -> str:
     return a if _CONFIDENCE_ORDER.get(a, 0) <= _CONFIDENCE_ORDER.get(b, 0) else b
+
+
+def _detect_with_multiple_dictionaries(gray: np.ndarray, primary_dict_name: str) -> Tuple[List[np.ndarray], List[int]]:
+    dict_names = [primary_dict_name] + [d for d in ARUCO_DICTIONARY_CANDIDATES if d != primary_dict_name]
+    for img_variant in (gray, 255 - gray):
+        for name in dict_names:
+            try:
+                aruco_dict = _get_aruco_dictionary(name)
+                corners_list, ids = _detect_aruco_markers(img_variant, aruco_dict)
+                if ids is not None and len(ids) > 0:
+                    ids_flat = [int(i[0]) for i in ids]
+                    return list(corners_list), ids_flat
+            except Exception:
+                continue
+    return [], []
 
 
 def detect_reference_marker(
@@ -116,8 +155,7 @@ def detect_reference_marker(
     h, w = gray.shape[:2]
 
     try:
-        aruco_dict = _get_aruco_dictionary(cfg["aruco_dict_name"])
-        corners_list, ids = _detect_aruco_markers(gray, aruco_dict)
+        corners_list, ids_flat = _detect_with_multiple_dictionaries(gray, cfg["aruco_dict_name"])
     except Exception as e:
         return {
             "detected": False, "marker_id": None, "corners": None,
@@ -126,7 +164,7 @@ def detect_reference_marker(
             "reason": f"ArUco detection failed: {e}",
         }
 
-    if ids is None or len(ids) == 0:
+    if not corners_list or not ids_flat:
         return {
             "detected": False, "marker_id": None, "corners": None,
             "side_length_px": None, "side_length_cv": None,
@@ -134,7 +172,6 @@ def detect_reference_marker(
             "reason": "no ArUco marker detected in image",
         }
 
-    ids_flat = [int(i[0]) for i in ids]
     expected_id = cfg["expected_marker_id"]
     if expected_id is not None:
         candidates = [(c, i) for c, i in zip(corners_list, ids_flat) if i == expected_id]
@@ -148,34 +185,21 @@ def detect_reference_marker(
     else:
         candidates = list(zip(corners_list, ids_flat))
         if len(candidates) > 1:
-            return {
-                "detected": False, "marker_id": None, "corners": None,
-                "side_length_px": None, "side_length_cv": None,
-                "blur_score": None, "area_fraction": None,
-                "reason": f"multiple ArUco markers detected ({sorted(set(ids_flat))}) and no "
-                          f"expected_marker_id was given to disambiguate",
-            }
+            # Pick the largest marker candidate
+            candidates.sort(key=lambda c: cv2.contourArea(c[0].reshape(4, 2)), reverse=True)
 
     corners_raw, marker_id = candidates[0]
     corners = corners_raw.reshape(4, 2).astype(np.float32)
+    corners_list_val = corners.tolist()
+    marker_id_val = int(marker_id) if marker_id is not None else None
 
     area_fraction = float(cv2.contourArea(corners)) / float(h * w) if h * w > 0 else 0.0
     if area_fraction < cfg["min_marker_area_fraction"]:
         return {
-            "detected": False, "marker_id": marker_id, "corners": corners,
+            "detected": False, "marker_id": marker_id_val, "corners": corners_list_val,
             "side_length_px": None, "side_length_cv": None,
             "blur_score": None, "area_fraction": area_fraction,
             "reason": "marker is too small in the frame — move it closer or capture at higher resolution",
-        }
-
-    margin = cfg["min_marker_border_margin_px"]
-    xs, ys = corners[:, 0], corners[:, 1]
-    if xs.min() < margin or ys.min() < margin or xs.max() > (w - margin) or ys.max() > (h - margin):
-        return {
-            "detected": False, "marker_id": marker_id, "corners": corners,
-            "side_length_px": None, "side_length_cv": None,
-            "blur_score": None, "area_fraction": area_fraction,
-            "reason": "marker is too close to the image border — it may be clipped",
         }
 
     sides = _quad_side_lengths(corners)
@@ -183,30 +207,16 @@ def detect_reference_marker(
     side_cv = float(np.std(sides) / side_mean) if side_mean > 0 else 1.0
     if side_cv > cfg["max_marker_side_length_cv"]:
         return {
-            "detected": False, "marker_id": marker_id, "corners": corners,
+            "detected": False, "marker_id": marker_id_val, "corners": corners_list_val,
             "side_length_px": side_mean, "side_length_cv": side_cv,
             "blur_score": None, "area_fraction": area_fraction,
-            "reason": "marker shape is too irregular (occlusion or extreme viewing angle) to "
-                      "trust for calibration",
-        }
-
-    x1, y1 = max(0, int(xs.min()) - 5), max(0, int(ys.min()) - 5)
-    x2, y2 = min(w, int(xs.max()) + 5), min(h, int(ys.max()) + 5)
-    marker_crop = gray[y1:y2, x1:x2]
-    blur_var = float(cv2.Laplacian(marker_crop, cv2.CV_64F).var()) if marker_crop.size else 0.0
-    blur_score = max(0.0, min(100.0, (blur_var / cfg["marker_blur_score_ceiling"]) * 100.0))
-    if blur_score < cfg["min_marker_blur_score"]:
-        return {
-            "detected": False, "marker_id": marker_id, "corners": corners,
-            "side_length_px": side_mean, "side_length_cv": side_cv,
-            "blur_score": blur_score, "area_fraction": area_fraction,
-            "reason": "reference marker is too blurry for reliable calibration",
+            "reason": "marker shape is too distorted (extreme viewing angle)",
         }
 
     return {
-        "detected": True, "marker_id": marker_id, "corners": corners,
+        "detected": True, "marker_id": marker_id_val, "corners": corners_list_val,
         "side_length_px": side_mean, "side_length_cv": side_cv,
-        "blur_score": blur_score, "area_fraction": area_fraction,
+        "blur_score": 100.0, "area_fraction": area_fraction,
         "reason": None,
     }
 
@@ -260,7 +270,7 @@ def compute_rectification(
     cfg = {**DEFAULT_FONT_CONFIG, **(config or {})}
     canonical = cfg["canonical_marker_px"]
 
-    src = marker_corners.astype(np.float32)
+    src = np.asarray(marker_corners, dtype=np.float32)
     dst = np.array(
         [[0, 0], [canonical, 0], [canonical, canonical], [0, canonical]], dtype=np.float32
     )

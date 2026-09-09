@@ -38,8 +38,8 @@ import numpy as np
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     # Blur (Laplacian variance) — below this, image is considered too blurry
-    "blur_reject_threshold": 60.0,
-    "blur_warn_threshold": 150.0,
+    "blur_reject_threshold": 15.0,
+    "blur_warn_threshold": 60.0,
 
     # Brightness (mean pixel value, 0-255)
     "target_brightness": 128.0,

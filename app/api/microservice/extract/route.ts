@@ -26,6 +26,7 @@ export async function POST(req: Request) {
   const form = await req.formData()
   const inspectionId = form.get('inspectionId') as string | null
   const image = form.get('image') as File | null
+  const markerSizeMm = form.get('markerSizeMm') as string | null
 
   if (!inspectionId || !image) {
     return NextResponse.json({ error: 'inspectionId and image are required' }, { status: 400 })
@@ -33,13 +34,30 @@ export async function POST(req: Request) {
 
   const forwardForm = new FormData()
   forwardForm.append('file', image, image.name || 'capture.jpg')
+  if (markerSizeMm && !isNaN(Number(markerSizeMm))) {
+    forwardForm.append('marker_size_mm', markerSizeMm)
+  }
 
   const msRes = await fetch(`${MICROSERVICE_URL}/extract`, { method: 'POST', body: forwardForm })
+  const rawText = await msRes.text()
   if (!msRes.ok) {
-    const text = await msRes.text().catch(() => '')
-    return NextResponse.json({ error: `Microservice error: ${text}` }, { status: 502 })
+    let errorMsg = `Microservice error (${msRes.status}): ${rawText}`
+    try {
+      const parsed = JSON.parse(rawText)
+      if (parsed.error) errorMsg = parsed.error
+      else if (parsed.detail) errorMsg = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail)
+    } catch {}
+    return NextResponse.json({ error: errorMsg }, { status: msRes.status || 502 })
   }
-  const msJson = await msRes.json()
+  let msJson: any = null
+  try {
+    msJson = JSON.parse(rawText)
+  } catch {
+    return NextResponse.json({ error: `Microservice returned invalid JSON: ${rawText.slice(0, 300)}` }, { status: 502 })
+  }
+  if (!msJson || !msJson.result) {
+    return NextResponse.json({ error: msJson?.error || 'Microservice returned an empty or invalid result.' }, { status: 422 })
+  }
   const structuredData = msJson?.result?.structured_data || {}
   const fields: Record<string, any> = {}
   for (const [name, entry] of Object.entries<any>(structuredData)) {
@@ -74,7 +92,14 @@ export async function POST(req: Request) {
   // measurement is available; otherwise the highest-confidence measurement
   // found anywhere on the label is used.
   const fontMeasurements = msJson?.result?.font_measurements
-  if (fontMeasurements?.measurement_available) {
+  const markerDetected = !!fontMeasurements?.measurement_available
+  if (markerDetected) {
+    for (const [fieldName, measurement] of Object.entries<any>(fontMeasurements.fields || {})) {
+      if (!measurement?.available || !fields[fieldName]) continue
+      fields[fieldName].fontHeightPerMmUnit = measurement.character_height_mm
+      fields[fieldName].fontHeightConfidence = measurement.confidence
+      fields[fieldName].fontHeightUncertaintyPerMmUnit = measurement.measurement_uncertainty_mm
+    }
     const CONFIDENCE_RANK: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 }
     let best: { field: string; measurement: any } | null = null
     for (const [fieldName, measurement] of Object.entries<any>(fontMeasurements.fields || {})) {
@@ -87,11 +112,24 @@ export async function POST(req: Request) {
     if (best) {
       fields['font_height_mm'] = {
         value: String(best.measurement.character_height_mm),
-        confidence: FONT_CONFIDENCE_MAP[best.measurement.confidence] ?? 0.4,
+        confidence: FONT_CONFIDENCE_MAP[best.measurement.confidence] ?? 0.8,
         source: 'font_measurement',
         status: 'extracted',
         reason: `Measured from "${best.field}" via ArUco calibration marker (±${best.measurement.measurement_uncertainty_mm}mm).`,
+        // fontHeightPerMmUnit lets confirmMarkerSize multiply by the real block size
+        // and write the calibrated value back to .value for the rule engine.
+        fontHeightPerMmUnit: best.measurement.character_height_mm,
       }
+    }
+  }
+
+  if (!fields['font_height_mm'] || fields['font_height_mm'].status === 'missing' || !fields['font_height_mm'].value) {
+    fields['font_height_mm'] = {
+      value: null,
+      confidence: 0,
+      source: null,
+      status: 'missing',
+      reason: 'ArUco cannot be detected — enter font size manually',
     }
   }
 
@@ -105,5 +143,10 @@ export async function POST(req: Request) {
   // NEW: readability travels alongside the extraction response but is
   // deliberately NOT merged into `fields` — it's not a declaration the
   // officer resolves, just evidence quality shown later on the report.
-  return NextResponse.json({ inspection, structuredData: fields, readability: msJson?.result?.readability || null })
+  return NextResponse.json({
+    inspection,
+    structuredData: fields,
+    readability: msJson?.result?.readability || null,
+    markerDetected,   // NEW — tells the frontend whether to prompt for the reference block's real size
+  })
 }

@@ -48,6 +48,10 @@ def main():
         "--llm-model", type=str, default="qwen/qwen3.6-27b",
         help="LLM model name for the correction/extraction stage (passed to LabelOCRProcessor).",
     )
+    parser.add_argument(
+        "--marker-size-mm", type=float, default=20.0,
+        help="Real-world size (mm) of the ArUco reference block used for font-height calibration (default: 20.0)",
+    )
     args = parser.parse_args()
 
     target_path = Path(args.target)
@@ -67,7 +71,10 @@ def main():
     print(f"[*] Processing {len(image_files)} file(s)...\n")
     for img_file in image_files:
         try:
-            result, annotated_img = pipeline.process_file(img_file)
+            result, annotated_img = pipeline.process_file(
+                img_file,
+                font_config={"marker_size_mm": args.marker_size_mm},   # NEW
+            )
 
             json_out_path = output_dir / f"{img_file.stem}.json"
             with open(json_out_path, "w", encoding="utf-8") as f:

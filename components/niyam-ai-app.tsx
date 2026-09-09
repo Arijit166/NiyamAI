@@ -47,6 +47,10 @@ export type FieldRecord = {
   source?: string | null
   status: 'extracted' | 'manual' | 'not_applicable' | 'missing'
   reason?: string | null
+  fontHeightMm?: number | null                     // final mm, set once officer confirms block size
+  fontHeightPerMmUnit?: number | null              // NEW — raw ratio from backend, pre-calibration
+  fontHeightConfidence?: string | null
+  fontHeightUncertaintyPerMmUnit?: number | null   // NEW
 }
 
 // Shape of the details collected on the Inspection screen, held in memory
@@ -125,8 +129,7 @@ function StatCard({ icon: Icon, label, value, change, tone, data }: { icon: Reac
 function Topbar({ onMenu, onLogout, user }: { onMenu: () => void; onLogout: () => void; user: { name?: string | null; image?: string | null; role?: string | null } }) {
   return <header className="topbar">
     <button className="mobile-menu icon-button" onClick={onMenu} aria-label="Open navigation"><Menu size={20} /></button>
-    <div className="search-box"><Search size={17} /><input placeholder="Search inspections, products, evidence..." /><kbd>⌘ K</kbd></div>
-    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><ThemeToggle /><button className="icon-button notification"><Bell size={18} /><b>3</b></button></div>
+    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><ThemeToggle /><button className="icon-button notification"></button></div>
     <div className="officer" onClick={onLogout} style={{ cursor: 'pointer' }} title="Click to sign out">
       <Avatar name={user.name} image={user.image} size={36} />
       <div><strong>{user.name || 'Officer'}</strong><small>{ROLE_LABELS[user.role || ''] || 'Officer'}</small></div>
@@ -147,7 +150,7 @@ function Sidebar({ active, setActive, collapsed, setCollapsed, user }: { active:
 
 function Dashboard({ go }: { go: (view: string) => void }) {
   return <div className="page-content">
-    <div className="page-heading"><div><div className="eyebrow"><span className="pulse" /> LIVE OPERATIONS</div><h1>Enforcement Command Center</h1><p>Real-time compliance intelligence across inspections, products and manufacturers.</p></div><div className="heading-actions"><button className="button secondary"><Download size={16} /> Export brief</button><button className="button primary" onClick={() => go('inspection')}><ScanLine size={16} /> Start inspection <ArrowRight size={16} /></button></div></div>
+    <div className="page-heading"><div><div className="eyebrow"><span className="pulse" /> LIVE OPERATIONS</div><h1>Enforcement Command Center</h1><p>Real-time compliance intelligence across inspections, products and manufacturers.</p></div><div className="heading-actions"><button className="button primary" onClick={() => go('inspection')}><ScanLine size={16} /> Start inspection <ArrowRight size={16} /></button></div></div>
     <div className="stats-grid"><StatCard icon={ClipboardCheck} label="Total inspections" value="12,540" change="↗ 14.8%" tone="blue" data={[32,45,38,62,52,76,68,82,74,92,88,100]} /><StatCard icon={AlertTriangle} label="Non-compliant" value="4,310" change="34.4%" tone="red" data={[70,64,78,61,68,54,58,48,52,42,46,38]} /><StatCard icon={Target} label="High-risk products" value="827" change="↗ 9.2%" tone="amber" data={[35,42,37,58,49,62,68,65,78,72,84,90]} /><StatCard icon={History} label="Repeat violations" value="312" change="↗ 6.7%" tone="purple" data={[30,26,44,35,52,48,60,57,70,64,78,76]} /><StatCard icon={BrainCircuit} label="AI detection confidence" value="94.6%" change="+2.1%" tone="green" data={[72,76,74,82,80,84,86,88,87,92,90,95]} /></div>
     <section className="panel feed-panel"><div className="panel-head"><div><div className="eyebrow"><Activity size={13} /> LIVE FEED</div><h3>Recent inspections</h3></div><button className="text-button" onClick={() => go('history')}>Open repository <ArrowRight size={14} /></button></div><InspectionTable rows={inspections} go={go} /></section>
   </div>
@@ -228,6 +231,9 @@ function CaptureView({ go, inspectionId, onExtracted, onImageCaptured, onReadabi
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [markerDetected, setMarkerDetected] = useState(false)
+  const [pendingFields, setPendingFields] = useState<Record<string, FieldRecord> | null>(null)
+  const [markerSizeInput, setMarkerSizeInput] = useState('')
 
   const stopStream = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; setStreaming(false) }
 
@@ -313,17 +319,49 @@ function CaptureView({ go, inspectionId, onExtracted, onImageCaptured, onReadabi
       const form = new FormData()
       form.append('inspectionId', inspectionId)
       form.append('image', file)
+    
       const res = await fetch('/api/microservice/extract', { method: 'POST', body: form })
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Extraction failed')
-      const { structuredData, readability } = await res.json()
-      onExtracted(structuredData)
+      const { structuredData, readability, markerDetected: detected } = await res.json()
       onReadability?.(readability || null)
-      go('extraction')
+      if (detected) {
+        setPendingFields(structuredData)
+        setMarkerDetected(true)   // hold here — prompt for the block's real size before moving on
+      } else {
+        onExtracted(structuredData)
+        go('extraction')
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Extraction failed. Please retry.')
     } finally {
       setUploading(false)
     }
+  }
+
+    const confirmMarkerSize = () => {
+    const sizeMm = parseFloat(markerSizeInput)
+    if (!pendingFields || !sizeMm || sizeMm <= 0) return
+    const calibrated: Record<string, FieldRecord> = {}
+    for (const [name, f] of Object.entries(pendingFields)) {
+      calibrated[name] = f.fontHeightPerMmUnit
+        ? {
+            ...f,
+            fontHeightMm: Math.round(f.fontHeightPerMmUnit * sizeMm * 100) / 100,
+          }
+        : f
+    }
+    // Fix: font_height_mm.value must reflect the calibrated height so the rule
+    // engine (which reads .value via parseNum) compares the real mm value, not
+    // the raw uncalibrated per-mm-unit ratio stored in .fontHeightPerMmUnit.
+    const fontField = calibrated['font_height_mm']
+    if (fontField?.fontHeightPerMmUnit) {
+      const calibratedMm = Math.round(fontField.fontHeightPerMmUnit * sizeMm * 100) / 100
+      calibrated['font_height_mm'] = { ...fontField, fontHeightMm: calibratedMm, value: String(calibratedMm) }
+    }
+    onExtracted(calibrated)
+    setMarkerDetected(false)
+    setPendingFields(null)
+    go('extraction')
   }
 
   return <div className="page-content capture-page">
@@ -356,6 +394,29 @@ function CaptureView({ go, inspectionId, onExtracted, onImageCaptured, onReadabi
         <div className="assistant-message"><Sparkles size={16} /><p><strong>Single photo, full pipeline</strong>Your capture goes through OCR + LLM correction + the deterministic rule engine. Anything it can't read gets flagged for you on the next screen — recapture just that spot, type it in, or mark it not applicable.</p></div>
       </aside>
     </div>
+    {markerDetected && (
+      <div className="logout-overlay">
+        <div className="logout-modal">
+          <div className="logout-icon-wrap"><ScanLine size={26} /></div>
+          <div className="logout-eyebrow">REFERENCE BLOCK DETECTED</div>
+          <h3 className="logout-title">Enter the block's real size</h3>
+          <p className="logout-desc">A calibration marker was found in the photo. Enter its actual size in millimetres to convert detected text heights to mm.</p>
+          <input
+            type="number"
+            min={1}
+            step="0.1"
+            autoFocus
+            placeholder="e.g. 20"
+            value={markerSizeInput}
+            onChange={(e) => setMarkerSizeInput(e.target.value)}
+            style={{ width: '100%', marginBottom: 12 }}
+          />
+          <div className="logout-actions">
+            <button className="button primary logout-confirm" onClick={confirmMarkerSize} disabled={!markerSizeInput}>Confirm & continue</button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 }
 
@@ -395,6 +456,63 @@ function MissingFieldResolver({ inspectionId, name, onResolved }: { inspectionId
 
   const markNotApplicable = () => {
     onResolved({ value: null, confidence: 0, status: 'not_applicable', reason: 'Marked not applicable by officer' })
+  }
+
+  if (name === 'font_height_mm') {
+    return <div className="declaration-field field-warning">
+      <label>
+        {FIELD_LABELS[name] || name}
+        <span className="low-confidence" style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }}>
+          ArUco cannot be detected — enter font size manually
+        </span>
+      </label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+        <input
+          autoFocus
+          type="number"
+          step="0.1"
+          min={0.5}
+          placeholder="Enter font size in mm (e.g. 2.0)"
+          value={manualValue}
+          onChange={(e) => setManualValue(e.target.value)}
+          style={{ maxWidth: 260 }}
+        />
+        <button className="edit-button" onClick={saveManual} disabled={busy || !manualValue.trim()} style={{ height: 38 }}>
+          <Check size={14} /> Save font size
+        </button>
+      </div>
+      <small style={{ color: '#64748b', marginTop: 4, display: 'block' }}>
+        ArUco calibration marker was not detected. Enter the physical printed letter/numeral height in millimetres.
+      </small>
+    </div>
+  }
+
+  if (name === 'principal_display_panel_area_cm2') {
+    return <div className="declaration-field field-warning">
+      <label>
+        {FIELD_LABELS[name] || name}
+        <span className="low-confidence" style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }}>
+          Required for Table-I compliance check
+        </span>
+      </label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+        <input
+          type="number"
+          step="0.1"
+          min={0.1}
+          placeholder="Enter panel area in cm² (e.g. 40)"
+          value={manualValue}
+          onChange={(e) => setManualValue(e.target.value)}
+          style={{ maxWidth: 260 }}
+        />
+        <button className="edit-button" onClick={saveManual} disabled={busy || !manualValue.trim()} style={{ height: 38 }}>
+          <Check size={14} /> Save area
+        </button>
+      </div>
+      <small style={{ color: '#64748b', marginTop: 4, display: 'block' }}>
+        Measure the Principal Display Panel area (length × height in cm²) to verify font height compliance under Table-I.
+      </small>
+    </div>
   }
 
   if (mode === 'manual') {
@@ -746,7 +864,7 @@ function GenericModule({ view, go }: { view: string; go: (v: string) => void }) 
 // ReportView now also wires "Generate PDF" to the same export handler as
 // ResultView (passed down as a prop), so the officer can export from either
 // screen without duplicating the fetch/download logic.
-function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveError, role, isPassed, onPass, passing, passError, readability }: {
+function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveError, role, isPassed, onPass, passing, passError, readability, complianceResult }: {
   go: (v: string) => void
   onSave: () => void
   saving: boolean
@@ -760,6 +878,7 @@ function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveE
   passing: boolean
   passError: string | null
   readability?: any
+  complianceResult?: ComplianceResult | null
 }) {
   const overall = readability?.overall_readability
   return <div className="page-content">
@@ -819,13 +938,18 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [isCaseSaved, setIsCaseSaved] = useState(false)
   const [exportingPdf, setExportingPdf] = useState(false)
 
-  const MANDATORY_FIELD_KEYS = ['product_name', 'company_name', 'net_quantity', 'mrp', 'manufacturer', 'manufacturing_date', 'consumer_care']
+  const MANDATORY_FIELD_KEYS = ['product_name', 'company_name', 'net_quantity', 'mrp', 'manufacturer', 'manufacturing_date', 'consumer_care', 'font_height_mm', 'principal_display_panel_area_cm2']
 
   const handleExtracted = (raw: Record<string, FieldRecord>) => {
     const withDefaults = { ...raw }
     for (const key of MANDATORY_FIELD_KEYS) {
       if (!withDefaults[key]) {
-        withDefaults[key] = { value: null, confidence: 0, status: 'missing', reason: 'Not returned by extraction service' }
+        withDefaults[key] = {
+          value: null,
+          confidence: 0,
+          status: 'missing',
+          reason: key === 'font_height_mm' ? 'ArUco cannot be detected — enter font size manually' : 'Not returned by extraction service',
+        }
       }
     }
     setFields(withDefaults)
@@ -1018,7 +1142,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   else if (active === 'extraction') view = <ExtractionView go={go} inspectionId={inspectionId} fields={fields} setFields={setFields} isImported={isImported} setIsImported={setIsImported} />
   else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={(result) => { setComplianceResult(result); setIsCaseSaved(false); setIsPassedToSenior(false) }} />
   else if (active === 'result') view = <ResultView go={go} result={complianceResult} declaration={declaration} inspectionMeta={inspectionMeta} />
-  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} readability={readability} />
+  else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} readability={readability} complianceResult={complianceResult} />
   else if (active === 'profile') view = <ProfileView user={user} />
   else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
   else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />
