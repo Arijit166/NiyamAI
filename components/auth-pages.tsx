@@ -159,13 +159,6 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
             </>
           )}
 
-          {!signup && (
-            <div className="auth-options">
-              <label className="check-label"><input type="checkbox" /> Remember me</label>
-              <a href="#">Forgot password?</a>
-            </div>
-          )}
-
           {error && (
             <div className="auth-error">
               <AlertCircle size={18} />

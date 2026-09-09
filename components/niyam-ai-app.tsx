@@ -13,12 +13,13 @@ import {
   Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Target, Upload, UserRound,
   UsersRound, X, Zap, LogOut, Edit3, RefreshCw, Ban,
 } from 'lucide-react'
+import { SeniorReviewView } from './SeniorReviewView'
 
 // ---------------------------------------------------------------------------
 // Field metadata: how each declaration key from the microservice maps onto
 // a human label + which YOLO/field-class name the recapture endpoint expects.
 // ---------------------------------------------------------------------------
-const FIELD_LABELS: Record<string, string> = {
+export const FIELD_LABELS: Record<string, string> = {
   manufacturer: 'Manufacturer',
   manufacturer_address: 'Manufacturer address',
   marketer: 'Marketer',
@@ -63,18 +64,19 @@ export type InspectionDraft = {
 }
 
 const nav = [
-  { label: 'Overview', icon: LayoutDashboard, view: 'overview', section: 'COMMAND' },
-  { label: 'New Inspection', icon: ScanLine, view: 'inspection', section: 'OPERATIONS', accent: true },
-  { label: 'Product Scanner', icon: Camera, view: 'capture', section: 'OPERATIONS', roles: ['admin', 'senior_officer'] },
-  { label: 'Inspections', icon: ClipboardCheck, view: 'history', section: 'OPERATIONS' },
-  { label: 'Profile', icon: UserRound, view: 'profile', section: 'OPERATIONS' },
-  { label: 'Products', icon: Box, view: 'product', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
-  { label: 'Manufacturers', icon: UsersRound, view: 'manufacturer', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
-  { label: 'Risk Intelligence', icon: Radar, view: 'risk', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
-  { label: 'E-Commerce Monitor', icon: Globe2, view: 'commerce', section: 'INTELLIGENCE', roles: ['admin', 'senior_officer'] },
-  { label: 'Evidence Vault', icon: Fingerprint, view: 'evidence', section: 'AUDIT', roles: ['admin', 'senior_officer'] },
-  { label: 'Rule Intelligence', icon: FileCheck2, view: 'rules', section: 'AUDIT', roles: ['admin', 'senior_officer'] },
-  { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'AUDIT', roles: ['admin', 'senior_officer'] },
+  { label: 'Overview', icon: LayoutDashboard, view: 'overview', section: 'COMMAND', roles: ['admin', 'executive_officer', 'senior_officer'] },
+  { label: 'New Inspection', icon: ScanLine, view: 'inspection', section: 'OPERATIONS', accent: true, roles: ['admin', 'executive_officer'] },
+  { label: 'Product Scanner', icon: Camera, view: 'capture', section: 'OPERATIONS', roles: ['admin'] },
+  { label: 'Inspections', icon: ClipboardCheck, view: 'history', section: 'OPERATIONS', roles: ['admin', 'executive_officer'] },
+  { label: 'Review Queue', icon: Eye, view: 'review-queue', section: 'OPERATIONS', roles: ['admin', 'senior_officer'] },
+  { label: 'Profile', icon: UserRound, view: 'profile', section: 'OPERATIONS', roles: ['admin', 'executive_officer', 'senior_officer'] },
+  { label: 'Products', icon: Box, view: 'product', section: 'INTELLIGENCE', roles: ['admin'] },
+  { label: 'Manufacturers', icon: UsersRound, view: 'manufacturer', section: 'INTELLIGENCE', roles: ['admin'] },
+  { label: 'Risk Intelligence', icon: Radar, view: 'risk', section: 'INTELLIGENCE', roles: ['admin'] },
+  { label: 'E-Commerce Monitor', icon: Globe2, view: 'commerce', section: 'INTELLIGENCE', roles: ['admin'] },
+  { label: 'Evidence Vault', icon: Fingerprint, view: 'evidence', section: 'AUDIT', roles: ['admin'] },
+  { label: 'Rule Intelligence', icon: FileCheck2, view: 'rules', section: 'AUDIT', roles: ['admin'] },
+  { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'AUDIT', roles: ['admin'] },
 ]
 
 const ROLE_LABELS: Record<string, string> = {
@@ -765,7 +767,17 @@ function InspectionHistoryView({ onSelect }: { onSelect: (insp: any) => void }) 
           </div>
           <div className="inspection-row-body">
             <strong>{insp.declaration?.product_name || 'Unnamed product'}</strong>
-            <small>{insp.passedToSeniorOfficer ? 'Passed to senior officer' : 'Saved'}</small>
+            <small className="inspection-row-status">
+              {!insp.passedToSeniorOfficer && 'Saved'}
+              {insp.passedToSeniorOfficer && (!insp.reviewStatus || insp.reviewStatus === 'pending') && 'Passed to senior officer • Pending review'}
+              {insp.passedToSeniorOfficer && insp.reviewStatus === 'accepted' && <Badge tone="green">Accepted</Badge>}
+              {insp.passedToSeniorOfficer && insp.reviewStatus === 'rejected' && (
+                <>
+                  <Badge tone="red">Rejected</Badge>
+                  {insp.rejectionReason && <span style={{ marginLeft: 6, color: '#64748b' }}>{insp.rejectionReason}</span>}
+                </>
+              )}
+            </small>
           </div>
           <div className="inspection-row-action">
             <button className="button secondary" onClick={() => onSelect(insp)}>View details <ChevronRight size={14} /></button>
@@ -835,7 +847,20 @@ function InspectionDetailView({ inspectionId, onBack, onGenerateReport, onEdit }
       </div>
     )}
     <div style={{ marginTop: 12 }}>
-      {insp.passedToSeniorOfficer ? <Badge tone="green">Passed to senior officer</Badge> : <Badge tone="amber">Not yet passed</Badge>}
+      {!insp.passedToSeniorOfficer && <Badge tone="amber">Not yet passed</Badge>}
+      {insp.passedToSeniorOfficer && (!insp.reviewStatus || insp.reviewStatus === 'pending') && <Badge tone="green">Passed to senior officer</Badge>}
+      {insp.passedToSeniorOfficer && insp.reviewStatus === 'accepted' && <Badge tone="green">Accepted</Badge>}
+      {insp.passedToSeniorOfficer && insp.reviewStatus === 'rejected' && (
+        <>
+          <Badge tone="red">Rejected</Badge>
+          {insp.rejectionReason && (
+            <div className="panel" style={{ marginTop: 8, padding: 12, borderLeft: '3px solid #ef4444' }}>
+              <strong style={{ display: 'block', fontSize: 12, marginBottom: 4 }}>Reason for rejection</strong>
+              <span style={{ fontSize: 13, color: '#475569' }}>{insp.rejectionReason}</span>
+            </div>
+          )}
+        </>
+      )}
     </div>
   </div>
 }
@@ -1142,11 +1167,14 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} readability={readability} complianceResult={complianceResult} />
   else if (active === 'profile') view = <ProfileView user={user} />
   else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
+  else if (active === 'review-queue') view = <SeniorReviewView />
   else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />
   else view = <GenericModule view={active} go={go} />
 
   const mobileNavItems = (user.role === 'executive_officer'
     ? [['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['profile', UserRound, 'Profile']]
+    : user.role === 'senior_officer'
+    ? [['overview', LayoutDashboard, 'Home'], ['review-queue', Eye, 'Review'], ['profile', UserRound, 'Profile']]
     : [['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['evidence', Fingerprint, 'Evidence'], ['profile', UserRound, 'Profile']]
   ) as [string, React.ElementType, string][]
 

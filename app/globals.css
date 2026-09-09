@@ -4118,3 +4118,6 @@ tbody tr:hover {
 .inspection-row-action {
   flex: none;
 }
+
+  .spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }

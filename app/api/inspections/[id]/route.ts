@@ -96,6 +96,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       update.passedToSeniorOfficer = !!body.passedToSeniorOfficer
       update.passedAt = body.passedToSeniorOfficer ? new Date() : null
     }
+    
+    // Senior officer's decision on a case that was passed to them.
+    if (body.reviewStatus !== undefined) {
+      if (!['accepted', 'rejected'].includes(body.reviewStatus)) {
+        return NextResponse.json({ error: 'Invalid reviewStatus.' }, { status: 400 })
+      }
+      if (body.reviewStatus === 'rejected' && !String(body.rejectionReason || '').trim()) {
+        return NextResponse.json({ error: 'A reason is required to reject a case.' }, { status: 400 })
+      }
+      update.reviewStatus = body.reviewStatus
+      update.rejectionReason = body.reviewStatus === 'rejected' ? String(body.rejectionReason).trim() : null
+      update.reviewedBy = (session.user as any).id
+      update.reviewedAt = new Date()
+    }
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update.' }, { status: 400 })

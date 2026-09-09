@@ -10,6 +10,7 @@ export type InspectionStatus =
   | 'non_compliant'
 
 export type FieldStatus = 'extracted' | 'manual' | 'not_applicable' | 'missing'
+export type ReviewStatus = 'pending' | 'accepted' | 'rejected'
 
 // One declaration field (e.g. mrp, net_quantity, manufacturer, ...)
 export interface IFieldRecord {
@@ -51,6 +52,10 @@ export interface IInspection {
   readability?: Record<string, unknown>
   passedToSeniorOfficer: boolean
   passedAt?: Date | null
+  reviewStatus: ReviewStatus
+  rejectionReason?: string | null
+  reviewedBy?: Types.ObjectId | null
+  reviewedAt?: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -91,6 +96,10 @@ const InspectionSchema = new Schema<IInspection>(
     readability: { type: Schema.Types.Mixed },
     passedToSeniorOfficer: { type: Boolean, default: false },
     passedAt: { type: Date, default: null },
+    reviewStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+    rejectionReason: { type: String, default: null },
+    reviewedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    reviewedAt: { type: Date, default: null },
   },
   { timestamps: true }
 )
