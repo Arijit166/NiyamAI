@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
+import { EnforcementMapView } from './niyam-ai-app/admin/EnforcementMapView'
+import { UsersView } from './niyam-ai-app/admin/UsersView'
+import { AnalyticsView } from './niyam-ai-app/admin/AnalyticsView'
 import type { ProductDeclaration, ComplianceResult } from '@/lib/rules/types'
 import { signOut } from 'next-auth/react'
 import {
@@ -60,23 +63,18 @@ export type InspectionDraft = {
   inspectionType: string
   premisesName: string
   notes: string
-  location: { address: string; lat?: number; lng?: number }
+  location: { address: string; city?: string; state?: string; lat?: number; lng?: number }
 }
 
 const nav = [
   { label: 'Overview', icon: LayoutDashboard, view: 'overview', section: 'COMMAND', roles: ['admin', 'executive_officer', 'senior_officer'] },
-  { label: 'New Inspection', icon: ScanLine, view: 'inspection', section: 'OPERATIONS', accent: true, roles: ['admin', 'executive_officer'] },
-  { label: 'Product Scanner', icon: Camera, view: 'capture', section: 'OPERATIONS', roles: ['admin'] },
-  { label: 'Inspections', icon: ClipboardCheck, view: 'history', section: 'OPERATIONS', roles: ['admin', 'executive_officer'] },
-  { label: 'Review Queue', icon: Eye, view: 'review-queue', section: 'OPERATIONS', roles: ['admin', 'senior_officer'] },
+  { label: 'New Inspection', icon: ScanLine, view: 'inspection', section: 'OPERATIONS', accent: true, roles: ['executive_officer'] },
+  { label: 'Inspections', icon: ClipboardCheck, view: 'history', section: 'OPERATIONS', roles: ['executive_officer'] },
+  { label: 'Review Queue', icon: Eye, view: 'review-queue', section: 'OPERATIONS', roles: ['senior_officer'] },
+  { label: 'Enforcement Map', icon: Radar, view: 'enforcement-map', section: 'INTELLIGENCE', roles: ['admin'] },
+  { label: 'Users', icon: UsersRound, view: 'admin-users', section: 'INTELLIGENCE', roles: ['admin'] },
+  { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'INTELLIGENCE', roles: ['admin'] },
   { label: 'Profile', icon: UserRound, view: 'profile', section: 'OPERATIONS', roles: ['admin', 'executive_officer', 'senior_officer'] },
-  { label: 'Products', icon: Box, view: 'product', section: 'INTELLIGENCE', roles: ['admin'] },
-  { label: 'Manufacturers', icon: UsersRound, view: 'manufacturer', section: 'INTELLIGENCE', roles: ['admin'] },
-  { label: 'Risk Intelligence', icon: Radar, view: 'risk', section: 'INTELLIGENCE', roles: ['admin'] },
-  { label: 'E-Commerce Monitor', icon: Globe2, view: 'commerce', section: 'INTELLIGENCE', roles: ['admin'] },
-  { label: 'Evidence Vault', icon: Fingerprint, view: 'evidence', section: 'AUDIT', roles: ['admin'] },
-  { label: 'Rule Intelligence', icon: FileCheck2, view: 'rules', section: 'AUDIT', roles: ['admin'] },
-  { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'AUDIT', roles: ['admin'] },
 ]
 
 const ROLE_LABELS: Record<string, string> = {
@@ -177,23 +175,83 @@ function InspectionView({ go, onCreated }: { go: (v: string) => void; onCreated:
   const [notes, setNotes] = useState('')
   const [address, setAddress] = useState('Detecting location...')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [detectedCity, setDetectedCity] = useState('')
+  const [detectedState, setDetectedState] = useState('')
+  const [resolving, setResolving] = useState(false)          // NEW
+  const geocodeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)   // NEW
 
-  useEffect(() => {
-    if (!navigator.geolocation) { setAddress('Location unavailable'); return }
+  // NEW — forward-geocodes whatever the officer typed (a city name, a
+  // state name, a full address, anything) into a proper city + state pair,
+  // the same shape reverse-geocoding produces off GPS. This is what makes
+  // manual typing land correctly in analytics/enforcement map, which group
+  // strictly by location.state / location.city.
+  const resolveLocationText = async (text: string) => {
+    const query = text.trim()
+    if (!query || query === 'Detecting location...') return
+    setResolving(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&countrycodes=in&q=${encodeURIComponent(query)}`,
+        { headers: { Accept: 'application/json' } }
+      )
+      const results = await res.json()
+      const match = results?.[0]
+      if (!match) return // leave existing detectedCity/detectedState untouched
+      const a = match.address || {}
+      const city = a.city || a.town || a.village || a.county || ''
+      const state = a.state || ''
+      setDetectedCity(city)
+      setDetectedState(state)
+      if (match.lat && match.lon) setCoords({ lat: parseFloat(match.lat), lng: parseFloat(match.lon) })
+    } catch {
+      // network hiccup — keep whatever was last resolved, officer can still save
+    } finally {
+      setResolving(false)
+    }
+  }
+
+  // NEW — debounced so we're not hitting Nominatim on every keystroke.
+  const handleAddressChange = (value: string) => {
+    setAddress(value)
+    if (geocodeDebounce.current) clearTimeout(geocodeDebounce.current)
+    geocodeDebounce.current = setTimeout(() => resolveLocationText(value), 700)
+  }
+
+  useEffect(() => () => { if (geocodeDebounce.current) clearTimeout(geocodeDebounce.current) }, []) // NEW cleanup
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) { setAddress('Location unavailable — enter manually'); return }
+    setAddress('Detecting location...')
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setAddress(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`)
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        setCoords({ lat: latitude, lng: longitude })
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+            { headers: { Accept: 'application/json' } }
+          )
+          const data = await res.json()
+          const a = data.address || {}
+          const city = a.city || a.town || a.village || a.county || 'Unknown city'
+          const state = a.state || ''
+          setDetectedCity(city)
+          setDetectedState(state)
+          setAddress(state ? `${city}, ${state}` : city)
+        } catch {
+          setAddress('Could not detect city — enter manually')
+        }
       },
       () => setAddress('Location permission denied — enter manually'),
     )
-  }, [])
-
-  const handleContinue = () => {
-    onCreated({ inspectionType, premisesName, notes, location: { address, ...coords } })
-    go('capture')
   }
 
+  useEffect(() => { detectLocation() }, [])
+
+  const handleContinue = () => {
+    onCreated({ inspectionType, premisesName, notes, location: { address, city: detectedCity, state: detectedState, ...coords } })
+    go('capture')
+  }
   return <div className="page-content narrow">
     <div className="page-heading"><div><div className="eyebrow">WORKFLOW / 01</div><h1>New inspection</h1><p>Create an evidence trail for a new packaged commodity inspection.</p></div><Badge tone="green"><CloudOff size={13} /> Offline-ready</Badge></div>
     <ProgressSteps active={0} />
@@ -202,7 +260,14 @@ function InspectionView({ go, onCreated }: { go: (v: string) => void; onCreated:
         <div className="section-title"><div className="step-number">01</div><div><h3>Inspection details</h3><p>Tell us where this inspection is happening.</p></div></div>
         <div className="form-grid">
           <label>Inspection type<select value={inspectionType} onChange={(e) => setInspectionType(e.target.value)}><option>Physical store</option><option>Supermarket</option><option>Warehouse</option><option>E-Commerce</option></select></label>
-          <label className="wide">Location<div className="input-with-action"><input value={address} onChange={(e) => setAddress(e.target.value)} /><button type="button" className="inline-action" onClick={() => window.location.reload()}><MapPin size={15} /> Re-detect</button></div></label>
+          <label className="wide">
+            Location
+            <div className="input-with-action">
+              <input value={address} onChange={(e) => handleAddressChange(e.target.value)} placeholder="City, state, or use current location" />
+              <button type="button" className="inline-action" onClick={detectLocation}><MapPin size={15} /> Use current location</button>
+            </div>
+            {resolving && <small style={{ color: '#64748b' }}>Resolving location...</small>}
+          </label>
           <label className="wide">Premises / shop name<input placeholder="Enter premises name" value={premisesName} onChange={(e) => setPremisesName(e.target.value)} /></label>
           <label className="wide">Inspection notes<textarea placeholder="Add observations for the audit trail..." value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
         </div>
@@ -934,6 +999,13 @@ function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveE
 
 export default function NiyamAIApp({ initialView = 'overview' }: { initialView?: string }) {
   const { data: session } = useSession()
+  useEffect(() => {
+    if (!session?.user) return
+    const ping = () => { fetch('/api/heartbeat', { method: 'POST' }).catch(() => {}) }
+    ping()
+    const interval = setInterval(ping, 60_000)
+    return () => clearInterval(interval)
+  }, [session?.user])
   const user = { name: session?.user?.name, image: session?.user?.image, role: (session?.user as any)?.role }
   const [active, setActive] = useState(initialView)
   const [collapsed, setCollapsed] = useState(false)
@@ -1168,14 +1240,17 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   else if (active === 'profile') view = <ProfileView user={user} />
   else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
   else if (active === 'review-queue') view = <SeniorReviewView />
+  else if (active === 'enforcement-map') view = <EnforcementMapView />
+  else if (active === 'admin-users') view = <UsersView />
   else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />
+  else if (active === 'analytics') view = <AnalyticsView />
   else view = <GenericModule view={active} go={go} />
 
   const mobileNavItems = (user.role === 'executive_officer'
     ? [['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['profile', UserRound, 'Profile']]
     : user.role === 'senior_officer'
     ? [['overview', LayoutDashboard, 'Home'], ['review-queue', Eye, 'Review'], ['profile', UserRound, 'Profile']]
-    : [['overview', LayoutDashboard, 'Home'], ['inspection', ScanLine, 'Inspect'], ['history', History, 'History'], ['evidence', Fingerprint, 'Evidence'], ['profile', UserRound, 'Profile']]
+    : [['overview', LayoutDashboard, 'Home'], ['enforcement-map', Radar, 'Map'], ['admin-users', UsersRound, 'Users'], ['analytics', BarChart3, 'Analytics'], ['profile', UserRound, 'Profile']]
   ) as [string, React.ElementType, string][]
 
   return (

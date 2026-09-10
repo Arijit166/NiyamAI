@@ -25,7 +25,7 @@ export interface IInspection {
   inspectionId: string // e.g. INS-2026-00126
   officer: Types.ObjectId
   inspectionType: string // Physical store | Supermarket | Warehouse | E-Commerce
-  location: { address: string; lat?: number; lng?: number }
+  location: { address: string; lat?: number; lng?: number; state?: string; city?: string }
   premisesName: string
   notes?: string
   status: InspectionStatus
@@ -80,6 +80,8 @@ const InspectionSchema = new Schema<IInspection>(
       address: { type: String, default: '' },
       lat: { type: Number },
       lng: { type: Number },
+      state: { type: String, default: '' },
+      city: { type: String, default: '' },
     },
     premisesName: { type: String, default: '' },
     notes: { type: String, default: '' },
@@ -103,5 +105,6 @@ const InspectionSchema = new Schema<IInspection>(
   },
   { timestamps: true }
 )
+InspectionSchema.index({ 'location.state': 1, 'location.city': 1 })
 
 export default models.Inspection || model<IInspection>('Inspection', InspectionSchema)
