@@ -364,22 +364,38 @@ def _split_into_line_bands(binary: np.ndarray, min_gap_px: int) -> List[Tuple[in
     return bands if bands else [(0, h)]
 
 
-def _measure_character_heights(crop_gray: np.ndarray, config: Dict[str, Any]) -> Dict[str, Any]:
+def _measure_character_heights(
+    crop_gray: np.ndarray,
+    config: Dict[str, Any],
+    expected_bbox_h: Optional[float] = None,
+) -> Dict[str, Any]:
     if crop_gray.size == 0:
         return {"heights_px": [], "method": "insufficient_components"}
 
+    crop_h, crop_w = crop_gray.shape[:2]
+    pad = config.get("crop_padding_px", 6)
+    ref_h = float(expected_bbox_h) if (expected_bbox_h is not None and expected_bbox_h > 0) else float(max(1, crop_h - 2 * pad))
+
     blurred = cv2.GaussianBlur(crop_gray, (3, 3), 0)
+    c_val = min(config.get("binarize_c", 5), 5)
     binary = cv2.adaptiveThreshold(
         blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV,
-        max(3, _odd(config["binarize_block_size"])), config["binarize_c"],
+        max(3, _odd(config.get("binarize_block_size", 25))), c_val,
     )
 
-    kernel_size = config["morph_open_kernel_size"]
-    if kernel_size and kernel_size > 0:
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
-        binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    # Polarity check: ensure ink is white (255) on dark background (0).
+    # If the border pixels are predominantly white, invert.
+    border_pixels = np.concatenate([binary[0, :], binary[-1, :], binary[:, 0], binary[:, -1]])
+    if np.mean(border_pixels > 0) > 0.45:
+        binary = cv2.bitwise_not(binary)
 
-    bands = _split_into_line_bands(binary, config["line_band_min_gap_px"])
+    # Vertical close to bridge small gaps between stroke segments in numerals
+    close_k = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 2))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_k)
+
+    # Do not split a single text line into horizontal slices: gap must be significant relative to line height
+    min_gap = max(config.get("line_band_min_gap_px", 3), int(ref_h * 0.35))
+    bands = _split_into_line_bands(binary, min_gap)
 
     candidate_heights: List[float] = []
     for (y1, y2) in bands:
@@ -389,29 +405,48 @@ def _measure_character_heights(crop_gray: np.ndarray, config: Dict[str, Any]) ->
         num_labels, _labels, stats, _centroids = cv2.connectedComponentsWithStats(band, connectivity=8)
         for i in range(1, num_labels):
             _x, _y, w, h, _area = stats[i]
-            if h < config["min_component_height_px"] or w < config["min_component_width_px"]:
+            if h < config.get("min_component_height_px", 3) or w < config.get("min_component_width_px", 1):
                 continue
             aspect = max(w, h) / max(1, min(w, h))
-            if aspect > config["max_component_aspect_ratio"]:
+            if aspect > config.get("max_component_aspect_ratio", 8.0):
                 continue
             candidate_heights.append(float(h))
 
     if not candidate_heights:
         return {"heights_px": [], "method": "insufficient_components"}
 
-    prelim_median = float(np.median(candidate_heights))
-    punctuation_floor = prelim_median * config["punctuation_max_relative_height"]
-    de_punctuated = [hgt for hgt in candidate_heights if hgt >= punctuation_floor] or candidate_heights
+    # Legal Metrology Table-I specifies the minimum height of numerals.
+    # Numerals and uppercase letters occupy the full cap-height, whereas lowercase letters
+    # only reach x-height (~70% of cap-height). Filter for the full-height glyphs (>= 0.78 * max_h)
+    # so lowercase letters do not drag down the legal numeral measurement.
+    char_candidates = [hgt for hgt in candidate_heights if hgt >= 0.4 * ref_h and hgt <= 1.25 * ref_h]
+    if char_candidates:
+        max_h = max(char_candidates)
+        numeral_candidates = [hgt for hgt in char_candidates if hgt >= 0.78 * max_h]
+        target_pool = numeral_candidates if len(numeral_candidates) >= 1 else char_candidates
+    else:
+        max_h = max(candidate_heights)
+        if max_h >= 0.45 * ref_h:
+            target_pool = [hgt for hgt in candidate_heights if hgt >= 0.75 * max_h]
+        else:
+            target_pool = []
+
+    if len(target_pool) < config.get("min_characters_for_measurement", 2):
+        return {"heights_px": target_pool, "method": "insufficient_components"}
+
+    prelim_median = float(np.median(target_pool))
+    punctuation_floor = prelim_median * config.get("punctuation_max_relative_height", 0.35)
+    de_punctuated = [hgt for hgt in target_pool if hgt >= punctuation_floor] or target_pool
 
     median_after_punct = float(np.median(de_punctuated))
-    ratio = config["outlier_height_ratio"]
+    ratio = config.get("outlier_height_ratio", 2.2)
     filtered = [
         hgt for hgt in de_punctuated
         if median_after_punct > 0 and (hgt / median_after_punct) <= ratio and (median_after_punct / hgt) <= ratio
     ]
-    final_heights = filtered if len(filtered) >= config["min_characters_for_measurement"] else de_punctuated
+    final_heights = filtered if len(filtered) >= config.get("min_characters_for_measurement", 2) else de_punctuated
 
-    if len(final_heights) < config["min_characters_for_measurement"]:
+    if len(final_heights) < config.get("min_characters_for_measurement", 2):
         return {"heights_px": final_heights, "method": "insufficient_components"}
 
     return {"heights_px": final_heights, "method": "connected_components"}
@@ -487,7 +522,21 @@ def compute_field_font_measurement(
     crop = rectified_image[y1:y2, x1:x2]
     crop_gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
 
-    measurement = _measure_character_heights(crop_gray, cfg)
+    pts = np.array(rect_bbox, dtype=np.float32)
+    if len(pts) >= 4:
+        # Measure true perpendicular side lengths of the quadrilateral (independent of rotation / tilt)
+        edge01 = float(np.linalg.norm(pts[0] - pts[1]))
+        edge12 = float(np.linalg.norm(pts[1] - pts[2]))
+        edge23 = float(np.linalg.norm(pts[2] - pts[3]))
+        edge30 = float(np.linalg.norm(pts[3] - pts[0]))
+        side_a = (edge01 + edge23) / 2.0
+        side_b = (edge12 + edge30) / 2.0
+        # Text line height is the short side perpendicular to reading direction
+        bbox_h = min(side_a, side_b) if min(side_a, side_b) > 0 else max(side_a, side_b)
+    else:
+        bbox_h = float(max(ys) - min(ys)) if ys else 0.0
+
+    measurement = _measure_character_heights(crop_gray, cfg, expected_bbox_h=bbox_h)
     heights = measurement["heights_px"]
     method = measurement["method"]
 
@@ -496,9 +545,19 @@ def compute_field_font_measurement(
         height_std_px = float(np.std(heights))
         characters_measured = len(heights)
     else:
-        char_height_px = float(max(ys) - min(ys)) if ys else 0.0
+        char_height_px = float(bbox_h * 0.95) if bbox_h > 0 else (float(max(ys) - min(ys)) if ys else 0.0)
         height_std_px = None
         characters_measured = 0
+
+    # Consistency guard: Table-I specifies the minimum height of numerals.
+    # In a text line, numerals occupy 85%-98% of bbox_h.
+    # If the measured height is less than 82% of bbox_h, it captured lowercase x-height
+    # or broken stroke fragments rather than full numerals. Use the numeral line height.
+    if bbox_h > 0 and char_height_px < 0.82 * bbox_h:
+        char_height_px = float(bbox_h * 0.95)
+        method = "bbox_fallback"
+        characters_measured = 0
+        height_std_px = None
 
     if char_height_px <= 0:
         return {"available": False, "reason": "could not measure any character/bbox height for this field"}
