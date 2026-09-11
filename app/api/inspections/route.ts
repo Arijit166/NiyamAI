@@ -90,7 +90,7 @@ export async function GET() {
     // role === 'admin' (or anything else) keeps query = {} i.e. everything
 
     const inspections = await Inspection.find(query)
-      .select('inspectionId premisesName location declaration passedToSeniorOfficer reviewStatus rejectionReason createdAt status')
+      .select('inspectionId premisesName location inspectionType declaration complianceResult readability capturedImageUrl passedToSeniorOfficer reviewStatus rejectionReason createdAt status')
       .sort({ createdAt: -1 })
       .limit(100)
       .lean({ flattenMaps: true })
