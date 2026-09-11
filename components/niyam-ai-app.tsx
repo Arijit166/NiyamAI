@@ -267,22 +267,6 @@ function Dashboard({ go, role }: { go: (view: string) => void; role?: string | n
               <p style={{ color: '#64748b', fontSize: 13 }}>No violations recorded yet.</p>
             )}
           </section>
-      {/* NEW — repeat violators, same data/logic as the Analytics tab */}
-      <section className="panel" style={{ padding: 16 }}>
-        <div className="eyebrow">REPEAT VIOLATORS</div>
-        <h3 style={{ marginBottom: 12 }}>Companies with 2+ non-compliant inspections</h3>
-        {(!analytics?.repeatViolators || analytics.repeatViolators.length === 0) && (
-          <p style={{ color: '#64748b', fontSize: 13 }}>No repeat violators found.</p>
-        )}
-        <div className="inspection-row-list">
-          {(analytics?.repeatViolators || []).map((r: any) => (
-            <div key={r.company} className="inspection-row">
-              <div className="inspection-row-body"><strong>{r.company}</strong></div>
-              <span className="badge badge-red">{r.nonCompliantCount} non-compliant</span>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   }
 
