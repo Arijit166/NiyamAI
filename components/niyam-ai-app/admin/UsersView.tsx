@@ -10,6 +10,8 @@ type OfficerUser = {
   image?: string | null
   role: 'executive_officer' | 'senior_officer'
   isOnline: boolean
+  jurisdictionCity?: string | null    // NEW
+  jurisdictionState?: string | null   // NEW
   stats: { totalInspections?: number; pending?: number; accepted?: number; rejected?: number }
   createdAt: string
 }
@@ -155,6 +157,11 @@ export function UsersView() {
                   <strong>{u.name}</strong>
                   <small>
                     {u.email}
+                    {(u.jurisdictionCity || u.jurisdictionState) && (
+                      <span style={{ marginLeft: 8, color: '#64748b' }}>
+                        • {u.jurisdictionCity}{u.jurisdictionCity && u.jurisdictionState ? ', ' : ''}{u.jurisdictionState}
+                      </span>
+                    )}
                     {u.role === 'executive_officer'
                       ? <span style={{ marginLeft: 8, color: '#64748b' }}>• <ClipboardCheck size={11} style={{ verticalAlign: -1 }} /> {u.stats.totalInspections ?? 0} inspections</span>
                       : <span style={{ marginLeft: 8, color: '#64748b' }}>• {u.stats.pending ?? 0} pending, {u.stats.accepted ?? 0} accepted, {u.stats.rejected ?? 0} rejected</span>}

@@ -10,11 +10,15 @@ declare module 'next-auth' {
       email?: string | null
       image?: string | null
       role: UserRole | null
+      jurisdictionCity?: string | null   // NEW
+      jurisdictionState?: string | null 
     }
   }
   interface User {
     id: string
     role?: UserRole | null
+    jurisdictionCity?: string | null     // NEW
+    jurisdictionState?: string | null
   }
 }
 
@@ -22,5 +26,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string
     role: UserRole | null
+    jurisdictionCity?: string | null     // NEW
+    jurisdictionState?: string | null
   }
 }

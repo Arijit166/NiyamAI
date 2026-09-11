@@ -563,10 +563,23 @@ main {
 
 .page-heading {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: center;
   gap: 24px;
   margin-bottom: 28px;
+  text-align: center;
+}
+
+.page-heading > div:first-child,
+.page-heading > .heading-actions {
+  width: 100%;
+}
+
+.page-heading > div:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .page-heading h1 {
@@ -598,9 +611,9 @@ main {
 
 .heading-actions {
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 9px;
-  padding-top: 12px;
 }
 
 .button {
@@ -702,9 +715,10 @@ main {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto 20px;
 }
 
 .stat-card,
@@ -766,8 +780,8 @@ main {
 }
 
 .stat-card {
-  min-height: 139px;
-  padding: 15px 16px 13px;
+  min-height: 158px;
+  padding: 18px 19px 16px;
   position: relative;
   overflow: hidden;
 }

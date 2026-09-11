@@ -10,7 +10,9 @@ export interface IUser {
   image?: string
   role: UserRole | null
   authProvider: AuthProvider
-  lastActiveAt?: Date | null   // NEW — updated by heartbeat while the officer has the app open
+  lastActiveAt?: Date | null  
+  jurisdictionCity?: string | null   
+  jurisdictionState?: string | null 
   createdAt: Date
 }
 
@@ -22,6 +24,8 @@ const UserSchema = new Schema<IUser>({
   role: { type: String, enum: ['admin', 'executive_officer', 'senior_officer'], default: null },
   authProvider: { type: String, enum: ['credentials', 'google'], required: true },
   lastActiveAt: { type: Date, default: null },
+  jurisdictionCity: { type: String, default: null }, 
+  jurisdictionState: { type: String, default: null }, 
   createdAt: { type: Date, default: Date.now },
 })
 

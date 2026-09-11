@@ -41,6 +41,7 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState('')
   const [passkey, setPasskey] = useState('')
+  const [jurisdictionCity, setJurisdictionCity] = useState('')
   const [error, setError] = useState(urlError ? ERROR_MESSAGES[urlError] || 'Something went wrong.' : '')
   const [loading, setLoading] = useState(false)
 
@@ -63,12 +64,13 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
       
       if (password !== confirmPassword) return setError('Passwords do not match.')
       if (role === 'admin' && !passkey) return setError('Admin passkey is required.')
+      if (role !== 'admin' && !jurisdictionCity.trim()) return setError('Please enter your jurisdiction city.')
 
       setLoading(true)
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: email.trim(), password, role, adminPasskey: passkey }),
+        body: JSON.stringify({ name, email: email.trim(), password, role, adminPasskey: passkey, jurisdictionCity: jurisdictionCity.trim() }),
       })
       const data = await res.json()
       setLoading(false)
@@ -154,6 +156,12 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
               {role === 'admin' && (
                 <label>Admin passkey
                   <input type="password" value={passkey} onChange={(e) => setPasskey(e.target.value)} placeholder="Enter admin passkey" />
+                </label>
+              )}
+
+              {role !== 'admin' && role && (
+                <label>Jurisdiction city
+                  <input type="text" value={jurisdictionCity} onChange={(e) => setJurisdictionCity(e.target.value)} placeholder="Enter your city" />
                 </label>
               )}
             </>

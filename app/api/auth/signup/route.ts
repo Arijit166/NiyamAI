@@ -5,10 +5,13 @@ import User from '@/models/User'
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password, role, adminPasskey } = await req.json()
+    const { name, email, password, role, adminPasskey, jurisdictionCity} = await req.json()
 
     if (!name || !email || !password || !role) {
       return NextResponse.json({ error: 'All fields are required.' }, { status: 400 })
+    }
+    if (role !== 'admin' && !String(jurisdictionCity || '').trim()) {
+      return NextResponse.json({ error: 'Please enter your jurisdiction city.' }, { status: 400 })
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email.trim())) {
@@ -43,8 +46,22 @@ export async function POST(req: Request) {
       )
     }
 
+    let jurisdictionState: string | null = null
+    if (role !== 'admin') {
+      try {
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&addressdetails=1&countrycodes=in&q=${encodeURIComponent(jurisdictionCity)}`,
+          { headers: { Accept: 'application/json', 'User-Agent': 'NiyamAI/1.0' } }
+        )
+        const results = await geoRes.json()
+        jurisdictionState = results?.[0]?.address?.state || null
+      } catch {
+        jurisdictionState = null
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10)
-    await User.create({ name, email: email.toLowerCase(), password: hashedPassword, role, authProvider: 'credentials' })
+    await User.create({ name, email: email.toLowerCase(), password: hashedPassword, role, authProvider: 'credentials',       jurisdictionCity: role === 'admin' ? null : String(jurisdictionCity).trim(), jurisdictionState, })
 
     return NextResponse.json({ success: true }, { status: 201 })
   } catch (err) {

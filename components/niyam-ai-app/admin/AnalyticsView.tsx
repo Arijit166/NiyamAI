@@ -41,40 +41,6 @@ export function AnalyticsView() {
       {data && (
         <>
           <section className="panel" style={{ padding: 16, marginBottom: 20 }}>
-            <div className="eyebrow"><TrendingUp size={13} /> VIOLATION TRENDS</div>
-            <h3 style={{ marginBottom: 12 }}>Inspections vs violations, last 12 months</h3>
-            <div style={{ width: '100%', height: 260 }}>
-              <ResponsiveContainer>
-                <LineChart data={data.violationTrends}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="month" stroke="#64748b" fontSize={11} />
-                  <YAxis stroke="#64748b" fontSize={11} />
-                  <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b' }} />
-                  <Line type="monotone" dataKey="inspections" stroke="#38bdf8" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="violations" stroke="#ef4444" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
-          <section className="panel" style={{ padding: 16, marginBottom: 20 }}>
-            <div className="eyebrow"><AlertTriangle size={13} /> MOST COMMON VIOLATIONS</div>
-            <h3 style={{ marginBottom: 12 }}>Top violation types</h3>
-            <div style={{ width: '100%', height: 280 }}>
-              <ResponsiveContainer>
-                <BarChart data={data.mostCommonViolations} layout="vertical" margin={{ left: 80 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis type="number" stroke="#64748b" fontSize={11} />
-                  <YAxis type="category" dataKey="title" stroke="#64748b" fontSize={11} width={160} />
-                  <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b' }} />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {data.mostCommonViolations.length === 0 && <p style={{ color: '#64748b', fontSize: 13 }}>No violations recorded yet.</p>}
-          </section>
-
-          <section className="panel" style={{ padding: 16, marginBottom: 20 }}>
             <div className="eyebrow"><Building2 size={13} /> COMPANY & PRODUCT</div>
             <h3 style={{ marginBottom: 12 }}>Ranked by violation count (highest first)</h3>
             {data.companyProductViolations.length === 0 && <p style={{ color: '#64748b', fontSize: 13 }}>No violations recorded yet.</p>}

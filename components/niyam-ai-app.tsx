@@ -7,6 +7,7 @@ import { EnforcementMapView } from './niyam-ai-app/admin/EnforcementMapView'
 import { UsersView } from './niyam-ai-app/admin/UsersView'
 import { AnalyticsView } from './niyam-ai-app/admin/AnalyticsView'
 import type { ProductDeclaration, ComplianceResult } from '@/lib/rules/types'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { signOut } from 'next-auth/react'
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Bell, Box, BrainCircuit, Camera, Check,
@@ -126,15 +127,34 @@ function StatCard({ icon: Icon, label, value, change, tone, data }: { icon: Reac
   </div>
 }
 
-function Topbar({ onMenu, onLogout, user }: { onMenu: () => void; onLogout: () => void; user: { name?: string | null; image?: string | null; role?: string | null } }) {
+function Topbar({ onMenu, onLogout, user, go }: {
+  onMenu: () => void
+  onLogout: () => void
+  go: (v: string) => void   // NEW
+  user: { name?: string | null; image?: string | null; role?: string | null; jurisdictionCity?: string | null; jurisdictionState?: string | null }
+}) {
+  const location = user.jurisdictionCity
+    ? `${user.jurisdictionCity}${user.jurisdictionState ? `, ${user.jurisdictionState}` : ''}`
+    : 'Location not set'
   return <header className="topbar">
     <button className="mobile-menu icon-button" onClick={onMenu} aria-label="Open navigation"><Menu size={20} /></button>
-    <div className="top-actions"><div className="location"><MapPin size={15} /><span>Kolkata, WB</span><ChevronRight size={13} /></div><div className="service-status"><i /> All systems operational</div><ThemeToggle /><button className="icon-button notification"></button></div>
-    <div className="officer" onClick={onLogout} style={{ cursor: 'pointer' }} title="Click to sign out">
-      <Avatar name={user.name} image={user.image} size={36} />
-      <div><strong>{user.name || 'Officer'}</strong><small>{ROLE_LABELS[user.role || ''] || 'Officer'}</small></div>
-      <LogOut size={15} style={{ marginLeft: '6px', color: '#64748b' }} />
+    <div className="top-actions">
+      <div className="location"><MapPin size={15} /><span>{location}</span><ChevronRight size={13} /></div>
+      <div className="service-status"><i /> All systems operational</div><ThemeToggle /><button className="icon-button notification"></button>
     </div>
+      <div className="officer" style={{ cursor: 'pointer' }}>
+        <div onClick={() => go('profile')} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} title="Go to profile">
+          <Avatar name={user.name} image={user.image} size={36} />
+          <div><strong>{user.name || 'Officer'}</strong><small>{ROLE_LABELS[user.role || ''] || 'Officer'}</small></div>
+        </div>
+        <span
+          onClick={onLogout}
+          title="Sign out"
+          style={{ display: 'inline-flex', marginLeft: 6, cursor: 'pointer' }}
+        >
+          <LogOut size={15} color="#64748b" />
+        </span>
+      </div>
   </header>
 }
 
@@ -148,12 +168,125 @@ function Sidebar({ active, setActive, collapsed, setCollapsed, user }: { active:
   </aside>
 }
 
-function Dashboard({ go }: { go: (view: string) => void }) {
-  return <div className="page-content">
-    <div className="page-heading"><div><div className="eyebrow"><span className="pulse" /> LIVE OPERATIONS</div><h1>Enforcement Command Center</h1><p>Real-time compliance intelligence across inspections, products and manufacturers.</p></div><div className="heading-actions"><button className="button primary" onClick={() => go('inspection')}><ScanLine size={16} /> Start inspection <ArrowRight size={16} /></button></div></div>
-    <div className="stats-grid"><StatCard icon={ClipboardCheck} label="Total inspections" value="12,540" change="↗ 14.8%" tone="blue" data={[32,45,38,62,52,76,68,82,74,92,88,100]} /><StatCard icon={AlertTriangle} label="Non-compliant" value="4,310" change="34.4%" tone="red" data={[70,64,78,61,68,54,58,48,52,42,46,38]} /><StatCard icon={Target} label="High-risk products" value="827" change="↗ 9.2%" tone="amber" data={[35,42,37,58,49,62,68,65,78,72,84,90]} /><StatCard icon={History} label="Repeat violations" value="312" change="↗ 6.7%" tone="purple" data={[30,26,44,35,52,48,60,57,70,64,78,76]} /><StatCard icon={BrainCircuit} label="AI detection confidence" value="94.6%" change="+2.1%" tone="green" data={[72,76,74,82,80,84,86,88,87,92,90,95]} /></div>
-    <section className="panel feed-panel"><div className="panel-head"><div><div className="eyebrow"><Activity size={13} /> LIVE FEED</div><h3>Recent inspections</h3></div><button className="text-button" onClick={() => go('history')}>Open repository <ArrowRight size={14} /></button></div><InspectionTable rows={inspections} go={go} /></section>
-  </div>
+function Dashboard({ go, role }: { go: (view: string) => void; role?: string | null }) {
+  const [data, setData] = useState<any | null>(null)
+  const [analytics, setAnalytics] = useState<any | null>(null)   // NEW
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const requests = [fetch('/api/dashboard/overview').then((res) => res.json())]
+    if (role === 'admin') {
+      requests.push(fetch('/api/admin/analytics').then((res) => res.json()))   // NEW
+    }
+    Promise.all(requests)
+      .then(([overview, analyticsData]) => {
+        setData(overview)
+        if (analyticsData) setAnalytics(analyticsData)   // NEW
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [role])   // MODIFIED — added role dependency
+
+  if (loading) return <div className="page-content"><p style={{ color: '#64748b', fontSize: 12 }}>Loading dashboard...</p></div>
+
+  const recentRow = (r: any, sub: string) => (
+    <div key={r._id} className="inspection-row">
+      <div className="inspection-row-body">
+        <strong>{r.declaration?.product_name || r.premisesName || 'Unnamed product'}</strong>
+        <small>{sub}</small>
+      </div>
+    </div>
+  )
+
+  if (role === 'executive_officer') {
+    const recent = data?.recent || []
+    return <div className="page-content">
+      <div className="page-heading">
+        <div><div className="eyebrow"><span className="pulse" /> LIVE OPERATIONS</div><h1>Enforcement Command Center</h1><p>Your inspections at a glance.</p></div>
+        <div className="heading-actions"><button className="button primary" onClick={() => go('inspection')}><ScanLine size={16} /> Start inspection <ArrowRight size={16} /></button></div>
+      </div>
+      <div className="stats-grid">
+        <StatCard icon={ClipboardCheck} label="Total inspections" value={String(data?.total ?? 0)} change="" tone="blue" data={[40,50,60,55,70,65,80]} />
+        <StatCard icon={Check} label="Compliant" value={String(data?.compliant ?? 0)} change="" tone="green" data={[40,50,60,55,70,65,80]} />
+        <StatCard icon={AlertTriangle} label="Non-compliant" value={String(data?.nonCompliant ?? 0)} change="" tone="red" data={[40,50,60,55,70,65,80]} />
+      </div>
+      <section className="panel feed-panel">
+        <div className="panel-head"><div><div className="eyebrow"><Activity size={13} /> RECENT</div><h3>Recent inspections</h3></div><button className="text-button" onClick={() => go('history')}>More <ArrowRight size={14} /></button></div>
+        <div className="inspection-row-list">
+          {recent.map((r: any) => recentRow(r, `${r.location?.city || ''}${r.location?.state ? `, ${r.location.state}` : ''} • ${new Date(r.createdAt).toLocaleString()}`))}
+          {recent.length === 0 && <div className="empty-state panel"><h3>No inspections yet</h3></div>}
+        </div>
+      </section>
+    </div>
+  }
+
+  if (role === 'senior_officer') {
+    const recent = data?.recent || []
+    return <div className="page-content">
+      <div className="page-heading"><div><div className="eyebrow"><span className="pulse" /> LIVE OPERATIONS</div><h1>Review Command Center</h1><p>Your review activity at a glance.</p></div></div>
+      <div className="stats-grid">
+        <StatCard icon={Eye} label="Reviews done" value={String(data?.reviewsDone ?? 0)} change="" tone="blue" data={[40,50,60,55,70,65,80]} />
+        <StatCard icon={Check} label="Accepted" value={String(data?.accepted ?? 0)} change="" tone="green" data={[40,50,60,55,70,65,80]} />
+        <StatCard icon={X} label="Rejected" value={String(data?.rejected ?? 0)} change="" tone="red" data={[40,50,60,55,70,65,80]} />
+      </div>
+      <section className="panel feed-panel">
+        <div className="panel-head"><div><div className="eyebrow"><Activity size={13} /> RECENT</div><h3>Recently reviewed</h3></div><button className="text-button" onClick={() => go('review-queue')}>More <ArrowRight size={14} /></button></div>
+        <div className="inspection-row-list">
+          {recent.map((r: any) => recentRow(r, `${r.reviewStatus === 'accepted' ? 'Accepted' : 'Rejected'} • ${r.reviewedAt ? new Date(r.reviewedAt).toLocaleString() : ''}`))}
+          {recent.length === 0 && <div className="empty-state panel"><h3>No reviews yet</h3></div>}
+        </div>
+      </section>
+    </div>
+  }
+
+  if (role === 'admin') {
+    return <div className="page-content">
+      <div className="page-heading"><div><div className="eyebrow"><span className="pulse" /> LIVE OPERATIONS</div><h1>Enforcement Command Center</h1><p>Platform-wide overview.</p></div></div>
+      <div className="stats-grid">
+        <StatCard icon={UsersRound} label="Executive officers" value={String(data?.executiveOfficers ?? 0)} change="" tone="blue" data={[40,50,60,55,70,65,80]} />
+        <StatCard icon={UsersRound} label="Senior officers" value={String(data?.seniorOfficers ?? 0)} change="" tone="purple" data={[40,50,60,55,70,65,80]} />
+        <StatCard icon={History} label="Repeated violations" value={String(data?.repeatedViolations ?? 0)} change="" tone="amber" data={[40,50,60,55,70,65,80]} />
+      </div>
+      {/* NEW — violation trends chart, pulled from /api/admin/analytics */}
+      {/* NEW — violation trends chart, pulled from /api/admin/analytics */}
+          <section className="panel" style={{ padding: 16, marginBottom: 20 }}>
+            <div className="eyebrow"><AlertTriangle size={13} /> MOST COMMON VIOLATIONS</div>
+            <h3 style={{ marginBottom: 12 }}>Top violation types</h3>
+            <div style={{ width: '100%', height: 280 }}>
+              <ResponsiveContainer>
+                <BarChart data={analytics?.mostCommonViolations || []} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis type="number" stroke="#64748b" fontSize={11} />
+                  <YAxis type="category" dataKey="title" stroke="#64748b" fontSize={11} width={160} />
+                  <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b' }} />
+                  <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            {(!analytics?.mostCommonViolations || analytics.mostCommonViolations.length === 0) && (
+              <p style={{ color: '#64748b', fontSize: 13 }}>No violations recorded yet.</p>
+            )}
+          </section>
+      {/* NEW — repeat violators, same data/logic as the Analytics tab */}
+      <section className="panel" style={{ padding: 16 }}>
+        <div className="eyebrow">REPEAT VIOLATORS</div>
+        <h3 style={{ marginBottom: 12 }}>Companies with 2+ non-compliant inspections</h3>
+        {(!analytics?.repeatViolators || analytics.repeatViolators.length === 0) && (
+          <p style={{ color: '#64748b', fontSize: 13 }}>No repeat violators found.</p>
+        )}
+        <div className="inspection-row-list">
+          {(analytics?.repeatViolators || []).map((r: any) => (
+            <div key={r.company} className="inspection-row">
+              <div className="inspection-row-body"><strong>{r.company}</strong></div>
+              <span className="badge badge-red">{r.nonCompliantCount} non-compliant</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  }
+
+  return <div className="page-content"><p style={{ color: '#64748b', fontSize: 12 }}>No dashboard data.</p></div>
 }
 
 function InspectionTable({ rows, go }: { rows: string[][]; go: (v: string) => void }) {
@@ -771,14 +904,92 @@ const fileToThumbnailBase64 = (f: File, maxDim = 480, quality = 0.7): Promise<st
     img.src = url
   })
 
-function ProfileView({ user }: { user: { name?: string | null; role?: string | null } }) {
+function ProfileView({ user, jurisdictionCity, jurisdictionState, onPhotoChange }: {
+  user: { name?: string | null; role?: string | null; image?: string | null }
+  jurisdictionCity?: string | null
+  jurisdictionState?: string | null
+  onPhotoChange: (image: string | null) => void
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [photoAction, setPhotoAction] = useState<'uploading' | 'removing' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const fileToBase64 = (f: File, maxDim = 320, quality = 0.8): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(f)
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+        URL.revokeObjectURL(url)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = url
+    })
+
+  const handleUpload = async (f: File | null) => {
+    if (!f) return
+    setPhotoAction('uploading')
+    setError(null)
+    try {
+      const base64 = await fileToBase64(f)
+      const res = await fetch('/api/profile/photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      })
+      if (!res.ok) throw new Error('Failed to upload photo.')
+      onPhotoChange(base64)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to upload photo.')
+    } finally {
+      setPhotoAction(null)
+    }
+  }
+
+  const handleRemove = async () => {
+    setPhotoAction('removing')
+    setError(null)
+    try {
+      const res = await fetch('/api/profile/photo', { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to remove photo.')
+      onPhotoChange(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to remove photo.')
+    } finally {
+      setPhotoAction(null)
+    }
+  }
+
   return <div className="page-content narrow">
     <div className="page-heading"><div><div className="eyebrow">ACCOUNT</div><h1>Profile</h1><p>Officer profile details.</p></div></div>
-    <div className="empty-state panel">
-      <div className="empty-icon"><UserRound size={25} /></div>
-      <h3>Coming soon</h3>
-      <p>Profile details for {user.name || 'this officer'} will appear here.</p>
-    </div>
+    <section className="panel" style={{ padding: 20, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
+      <Avatar name={user.name} image={user.image} size={72} />
+      <div>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleUpload(e.target.files?.[0] || null)} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="button secondary" onClick={() => fileRef.current?.click()} disabled={photoAction !== null}>
+            {photoAction === 'uploading' ? 'Uploading...' : user.image ? 'Change photo' : 'Upload photo'}
+          </button>
+          {user.image && <button className="button secondary" onClick={handleRemove} disabled={photoAction !== null}>{photoAction === 'removing' ? 'Removing...' : 'Remove photo'}</button>}
+        </div>
+        {error && <p style={{ color: '#ef4444', fontSize: 12, marginTop: 6 }}>{error}</p>}
+      </div>
+    </section>
+    <section className="panel" style={{ padding: 20 }}>
+      <div className="declaration-field"><label>Name</label><div><input value={user.name || ''} readOnly /></div></div>
+      <div className="declaration-field"><label>Role</label><div><input value={ROLE_LABELS[user.role || ''] || 'Officer'} readOnly /></div></div>
+      {(jurisdictionCity || jurisdictionState) && (
+        <div className="declaration-field">
+          <label>Jurisdiction area</label>
+          <div><input value={[jurisdictionCity, jurisdictionState].filter(Boolean).join(', ')} readOnly /></div>
+        </div>
+      )}
+    </section>
   </div>
 }
 
@@ -791,13 +1002,15 @@ function InspectionHistoryView({ onSelect }: { onSelect: (insp: any) => void }) 
 
   useEffect(() => {
     let cancelled = false
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 10000)
     setLoading(true)
-    fetch('/api/inspections')
+    fetch('/api/inspections', { signal: controller.signal })
       .then((res) => { if (!res.ok) throw new Error('Failed to load inspections'); return res.json() })
       .then((data) => { if (!cancelled) setItems(data.inspections || []) })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load inspections') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+      .catch((e) => { if (!cancelled) setError(e?.name === 'AbortError' ? 'Loading inspections timed out. Please try again.' : e instanceof Error ? e.message : 'Failed to load inspections') })
+      .finally(() => { window.clearTimeout(timeout); if (!cancelled) setLoading(false) })
+    return () => { cancelled = true; window.clearTimeout(timeout); controller.abort() }
   }, [])
 
   const filtered = items.filter((insp) => {
@@ -998,15 +1211,25 @@ function ReportView({ go, onSave, saving, isSaved, onExportPdf, exporting, saveE
 }
 
 export default function NiyamAIApp({ initialView = 'overview' }: { initialView?: string }) {
-  const { data: session } = useSession()
+  const { data: session, update } = useSession()  
+  const [profileImage, setProfileImage] = useState<string | null>(null)
+  const sessionEmail = session?.user?.email
   useEffect(() => {
-    if (!session?.user) return
+    if (!sessionEmail) {
+      setProfileImage(null)
+      return
+    }
+    setProfileImage(session?.user?.image || null)
+    fetch('/api/profile/photo')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => { if (data) setProfileImage(data.image || null) })
+      .catch(() => {})
     const ping = () => { fetch('/api/heartbeat', { method: 'POST' }).catch(() => {}) }
     ping()
     const interval = setInterval(ping, 60_000)
     return () => clearInterval(interval)
-  }, [session?.user])
-  const user = { name: session?.user?.name, image: session?.user?.image, role: (session?.user as any)?.role }
+  }, [sessionEmail])
+  const user = { name: session?.user?.name, image: profileImage, role: (session?.user as any)?.role, jurisdictionCity: (session?.user as any)?.jurisdictionCity, jurisdictionState: (session?.user as any)?.jurisdictionState, }
   const [active, setActive] = useState(initialView)
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -1018,6 +1241,10 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   const [passingToSenior, setPassingToSenior] = useState(false)
   const [passError, setPassError] = useState<string | null>(null)
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null)
+  const handlePhotoChange = async (image: string | null) => {
+    setProfileImage(image)
+    await update({ image })
+  }
 
   // Nothing is written to Mongo until handleSaveCase runs at the end.
   // `inspectionDraft` holds the form details from InspectionView in memory.
@@ -1097,7 +1324,9 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
       principal_display_panel_area_cm2: parseNum(fields.principal_display_panel_area_cm2?.value),
     },
     mrp: { amount: parseNum(fields.mrp?.value) || 0, currency: '₹' },
-    manufacturer: fields.manufacturer?.value || undefined,
+    manufacturer: [fields.manufacturer?.value, fields.manufacturer_address?.value]
+      .filter((value, index, values) => value && values.indexOf(value) === index)
+      .join(', ') || undefined,
     packed_date: fields.manufacturing_date?.value || undefined,
     consumer_care: fields.consumer_care?.value || undefined,
     country_of_origin: fields.country_of_origin?.value || undefined,
@@ -1220,7 +1449,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   }
   const [readability, setReadability] = useState<any | null>(null)
   let view: React.ReactNode
-  if (active === 'overview') view = <Dashboard go={go} />
+  if (active === 'overview') view = <Dashboard go={go} role={user.role} />   // MODIFIED
   else if (active === 'inspection') view = <InspectionView go={go} onCreated={(draft) => {
     setInspectionDraft(draft)
     setInspectionId(crypto.randomUUID())
@@ -1237,7 +1466,14 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   else if (active === 'analysis') view = <AnalysisView go={go} declaration={declaration} onResult={(result) => { setComplianceResult(result); setIsCaseSaved(false); setIsPassedToSenior(false) }} />
   else if (active === 'result') view = <ResultView go={go} result={complianceResult} declaration={declaration} inspectionMeta={inspectionMeta} />
   else if (active === 'report') view = <ReportView go={go} onSave={handleSaveCase} saving={savingCase} isSaved={isCaseSaved} onExportPdf={exportPdf} exporting={exportingPdf} saveError={saveError} role={user.role} isPassed={isPassedToSenior} onPass={handlePassToSenior} passing={passingToSenior} passError={passError} readability={readability} complianceResult={complianceResult} />
-  else if (active === 'profile') view = <ProfileView user={user} />
+  else if (active === 'profile') view = (
+    <ProfileView
+      user={user}
+      jurisdictionCity={user.jurisdictionCity}
+      jurisdictionState={user.jurisdictionState}
+      onPhotoChange={handlePhotoChange}
+    />
+  )
   else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
   else if (active === 'review-queue') view = <SeniorReviewView />
   else if (active === 'enforcement-map') view = <EnforcementMapView />
@@ -1257,7 +1493,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
     <div className="app-shell">
       <Sidebar active={active} setActive={go} collapsed={collapsed} setCollapsed={setCollapsed} user={user} />
       <div className={cn('main-shell', mobileOpen && 'mobile-open')}>
-        <Topbar onMenu={() => setMobileOpen(true)} onLogout={() => setShowLogoutModal(true)} user={user} />
+        <Topbar onMenu={() => setMobileOpen(true)} onLogout={() => setShowLogoutModal(true)} user={user} go={go} /> 
         <main>{view}</main>
         <div className="mobile-nav">
           {mobileNavItems.map(([v, Icon, label]) => (

@@ -145,10 +145,16 @@ function checkMRP(input: ProductDeclaration): RuleCheckResult[] {
 // --- Manufacturer address completeness -------------------------------------
 function checkManufacturer(input: ProductDeclaration): RuleCheckResult | null {
   if (!input.manufacturer) return null
-  const hasPin = PIN_CODE_REGEX.test(input.manufacturer)
-  const hasCommaSeparatedParts = input.manufacturer.split(',').length >= 2
+  const normalizedAddress = input.manufacturer
+    .normalize('NFKC')
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const hasPin = PIN_CODE_REGEX.test(normalizedAddress.replace(/(\d{3})[\s-](\d{3})/g, '$1$2'))
+  const addressText = normalizedAddress.replace(/\b\d{6}\b/, '').replace(/[^a-zA-Z]+/g, ' ').trim()
+  const hasAddressParts = normalizedAddress.split(',').map((part) => part.trim()).filter(Boolean).length >= 2 || addressText.split(/\s+/).filter(Boolean).length >= 3
 
-  const complete = hasPin && hasCommaSeparatedParts
+  const complete = hasPin && hasAddressParts
   return complete
     ? pass('MANUFACTURER_ADDRESS', 'Data consistency', 'manufacturer', 'Manufacturer name and address appear complete (includes PIN code).', 'name and address of manufacturer rule 6')
     : fail(

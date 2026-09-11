@@ -78,6 +78,21 @@ export async function POST(req: Request) {
     }
   }
 
+  // The OCR service may separate the legal entity name and its address into
+  // two keys, while the compliance engine evaluates one manufacturer field.
+  // Merge them so the address shown in extraction is also used for scoring.
+  const manufacturer = fields.manufacturer?.value
+  const manufacturerAddress = fields.manufacturer_address?.value
+  if (manufacturerAddress && manufacturer) {
+    fields.manufacturer = {
+      ...fields.manufacturer,
+      value: `${manufacturer}, ${manufacturerAddress}`,
+      status: 'extracted',
+    }
+  } else if (manufacturerAddress && !manufacturer) {
+    fields.manufacturer = { ...fields.manufacturer_address, value: manufacturerAddress }
+  }
+
   const productName = msJson?.result?.product_name
   fields['product_name'] = {
     value: isMissingValue(productName) ? null : String(productName),

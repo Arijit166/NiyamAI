@@ -16,6 +16,7 @@ export default function SelectRolePage() {
   const router = useRouter()
   const [role, setRole] = useState('')
   const [passkey, setPasskey] = useState('')
+  const [jurisdictionCity, setJurisdictionCity] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -23,19 +24,24 @@ export default function SelectRolePage() {
     setError('')
     if (!role) return setError('Please select a role.')
     if (role === 'admin' && !passkey) return setError('Admin passkey is required.')
+    if (role !== 'admin' && !jurisdictionCity.trim()) return setError('Please enter your jurisdiction city.')
     setLoading(true)
 
     const res = await fetch('/api/auth/set-role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, adminPasskey: passkey }),
+      body: JSON.stringify({ role, adminPasskey: passkey, jurisdictionCity: jurisdictionCity.trim() }),
     })
     const data = await res.json()
     setLoading(false)
 
     if (!res.ok) return setError(data.error || 'Something went wrong.')
 
-    await update({ role: data.role })
+    await update({
+      role: data.role,
+      jurisdictionCity: data.jurisdictionCity,
+      jurisdictionState: data.jurisdictionState,
+    })
     router.push('/')
   }
 
@@ -59,6 +65,12 @@ export default function SelectRolePage() {
         {role === 'admin' && (
           <label className="admin-passkey-group">Admin passkey
             <input type="password" placeholder="Enter admin passkey" value={passkey} onChange={(e) => setPasskey(e.target.value)} />
+          </label>
+        )}
+
+        {role !== 'admin' && role && (
+          <label className="admin-passkey-group">Jurisdiction city
+            <input type="text" placeholder="Enter your city" value={jurisdictionCity} onChange={(e) => setJurisdictionCity(e.target.value)} />
           </label>
         )}
 

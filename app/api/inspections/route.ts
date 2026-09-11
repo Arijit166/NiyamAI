@@ -66,8 +66,34 @@ export async function POST(req: NextRequest) {
 // GET /api/inspections — repository list for the "Inspections" / History view.
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Not authenticated.' }, { status: 401 })
+    }
     await connectDB()
-    const inspections = await Inspection.find().sort({ createdAt: -1 }).limit(100).lean({ flattenMaps: true })
+
+    const role = (session.user as any).role
+    const userId = (session.user as any).id
+    const city = (session.user as any).jurisdictionCity
+    const state = (session.user as any).jurisdictionState
+
+    let query: Record<string, unknown> = {}
+
+    if (role === 'executive_officer') {
+      query = { officer: userId }
+    } else if (role === 'senior_officer') {
+      const jurisdictionMatch: Record<string, unknown> = { passedToSeniorOfficer: true }
+      if (city) jurisdictionMatch['location.city'] = city
+      if (state) jurisdictionMatch['location.state'] = state
+      query = { $or: [jurisdictionMatch, { reviewedBy: userId }] }
+    }
+    // role === 'admin' (or anything else) keeps query = {} i.e. everything
+
+    const inspections = await Inspection.find(query)
+      .select('inspectionId premisesName location declaration passedToSeniorOfficer reviewStatus rejectionReason createdAt status')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean({ flattenMaps: true })
     return NextResponse.json({ inspections })
   } catch (err) {
     console.error('[inspections] list failed:', err)
