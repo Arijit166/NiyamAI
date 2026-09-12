@@ -20,15 +20,35 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
-        identificationCode: { label: 'Identification Code', type: 'text' }, // NEW
+        identificationCode: { label: 'Identification Code', type: 'text' },
+        apiKey: { label: 'API Key', type: 'text' },
+        mode: { label: 'Mode', type: 'text' }, // NEW — for compliance_head login
       },
       async authorize(credentials) {
+        await connectDB()
+
+        // NEW — product manager: paste API key only, no email/password
+        if (credentials?.mode === 'apiKeyOnly') {
+          const suppliedKey = String(credentials.apiKey || '').trim()
+          if (!suppliedKey) throw new Error('Please enter your API key.')
+          const pmUser = await User.findOne({ apiKey: suppliedKey, role: 'product_manager' }).select('+apiKey')
+          if (!pmUser) throw new Error('Invalid API key.')
+          return {
+            id: pmUser._id.toString(),
+            name: pmUser.name,
+            email: pmUser.email,
+            role: pmUser.role,
+            companyName: pmUser.companyName ?? null,
+            productName: pmUser.productName ?? null,
+            codeVerified: true,
+          }
+        }
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Email and password are required.')
         }
 
-        await connectDB()
-        const user = await User.findOne({ email: credentials.email.toLowerCase() }).select('+password')
+        const user = await User.findOne({ email: credentials.email.toLowerCase() }).select('+password +apiKey')
 
         if (!user) throw new Error('No account found with this email. Please sign up first.')
         if (user.authProvider === 'google') throw new Error('This email is registered with Google. Please sign in with Google.')
@@ -36,7 +56,16 @@ export const authOptions: NextAuthOptions = {
         const isValid = await bcrypt.compare(credentials.password, user.password as string)
         if (!isValid) throw new Error('Incorrect password. Please try again.')
 
-        // NEW — officers must re-enter their identification code on every login
+        // NEW — compliance head (company) accounts need an approved status + matching API key
+        if (user.role === 'compliance_head') {
+          if (user.companyStatus === 'pending') throw new Error('Your company request is still awaiting admin approval.')
+          if (user.companyStatus === 'rejected') throw new Error('Your company request was not approved. Contact support for details.')
+          const suppliedKey = String(credentials.apiKey || '').trim()
+          if (!suppliedKey) throw new Error('Please enter your API key.')
+          if (suppliedKey !== user.apiKey) throw new Error('That API key does not match our records.')
+        }
+
+        // existing officer identification-code check
         if (user.identificationCode) {
           const supplied = String(credentials.identificationCode || '').trim().toUpperCase()
           if (!supplied) throw new Error('Please enter your identification code.')
@@ -50,6 +79,8 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           jurisdictionCity: user.jurisdictionCity ?? null,
           jurisdictionState: user.jurisdictionState ?? null,
+          companyName: user.companyName ?? null, 
+          productName: user.productName ?? null,
           codeVerified: true,
         }
       },
@@ -103,6 +134,8 @@ export const authOptions: NextAuthOptions = {
         token.picture = image && image.length <= 2048 ? image : null
         token.jurisdictionCity = (user as any).jurisdictionCity ?? null
         token.jurisdictionState = (user as any).jurisdictionState ?? null
+        token.companyName = (user as any).companyName ?? null
+        token.productName = (user as any).productName ?? null 
 
         // NEW — fresh login: does this account need a code, and hasn't been verified yet this session
         await connectDB()
@@ -129,7 +162,9 @@ export const authOptions: NextAuthOptions = {
           token.picture = dbUser.image && dbUser.image.length <= 2048 ? dbUser.image : null
           token.jurisdictionCity = dbUser.jurisdictionCity ?? null
           token.jurisdictionState = dbUser.jurisdictionState ?? null
-          token.hasIdentificationCode = !!dbUser.identificationCode // NEW
+          token.hasIdentificationCode = !!dbUser.identificationCode 
+          token.companyName = dbUser.companyName ?? null
+          token.productName = dbUser.productName ?? null
         }
       }
 
@@ -141,7 +176,9 @@ export const authOptions: NextAuthOptions = {
       session.user.image = (token.picture as string) ?? null
       session.user.jurisdictionCity = (token.jurisdictionCity as string) ?? null
       session.user.jurisdictionState = (token.jurisdictionState as string) ?? null
-      session.user.codeVerified = (token.codeVerified as boolean) ?? true // NEW
+      session.user.codeVerified = (token.codeVerified as boolean) ?? true 
+      session.user.companyName = (token.companyName as string) ?? null
+      session.user.productName = (token.productName as string) ?? null
       return session
     },
   },

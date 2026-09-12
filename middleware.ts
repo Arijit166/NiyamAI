@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/signup']
+const PUBLIC_PATHS = ['/login', '/signup', '/company-signup',]
 
 function isPublicPage(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
 function isPublicAuthRoute(pathname: string) {
-  return pathname === '/api/auth/signup' || pathname.startsWith('/api/auth/signin') ||
+  return pathname === '/api/auth/signup' || pathname === '/api/auth/company-signup' || pathname.startsWith('/api/auth/signin') ||
     pathname.startsWith('/api/auth/callback') || pathname === '/api/auth/session' ||
     pathname === '/api/auth/csrf' || pathname === '/api/auth/providers' ||
     pathname.startsWith('/api/auth/signout') ||

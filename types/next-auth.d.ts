@@ -14,6 +14,8 @@ declare module 'next-auth' {
       jurisdictionState?: string | null 
       identificationCode?: string | null   // NEW
       codeVerified?: boolean
+      companyName?: string | null
+      productName?: string | null
     }
   }
   interface User {

@@ -81,6 +81,8 @@ export async function GET() {
 
     if (role === 'executive_officer') {
       query = { officer: userId }
+    } else if (role === 'product_manager') {
+      query = { officer: userId }
     } else if (role === 'senior_officer') {
       const jurisdictionMatch: Record<string, unknown> = { passedToSeniorOfficer: true }
       if (city) jurisdictionMatch['location.city'] = city

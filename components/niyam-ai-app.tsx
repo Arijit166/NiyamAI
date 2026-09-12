@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes'
 import { useSession } from 'next-auth/react'
 import { EnforcementMapView } from './niyam-ai-app/admin/EnforcementMapView'
 import { UsersView } from './niyam-ai-app/admin/UsersView'
+import { CompaniesView } from './niyam-ai-app/admin/CompaniesView' // NEW
 import { AnalyticsView } from './niyam-ai-app/admin/AnalyticsView'
 import type { ProductDeclaration, ComplianceResult } from '@/lib/rules/types'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
@@ -16,7 +17,7 @@ import {
   PackageCheck, PanelLeftClose, PanelLeftOpen, Radar, Search, ScanLine, Sun, Moon,
   Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Target, Upload, UserRound,
   UsersRound, X, Zap, LogOut, Edit3, RefreshCw, Ban,
-  BookOpen, Lightbulb, PlayCircle, FileWarning, Layers, MousePointerClick, // NEW
+  BookOpen, Lightbulb, PlayCircle, FileWarning, Layers, MousePointerClick, Building2 // NEW
 } from 'lucide-react'
 import { SeniorReviewView } from './SeniorReviewView'
 
@@ -76,6 +77,7 @@ const nav = [
   { label: 'Guidelines', icon: BookOpen, view: 'guidelines', section: 'OPERATIONS', roles: ['executive_officer', 'senior_officer'] }, // NEW
   { label: 'Enforcement Map', icon: Radar, view: 'enforcement-map', section: 'INTELLIGENCE', roles: ['admin'] },
   { label: 'Users', icon: UsersRound, view: 'admin-users', section: 'INTELLIGENCE', roles: ['admin'] },
+    { label: 'Companies', icon: Building2, view: 'admin-companies', section: 'INTELLIGENCE', roles: ['admin'] }, // NEW
   { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'INTELLIGENCE', roles: ['admin'] },
   { label: 'Profile', icon: UserRound, view: 'profile', section: 'OPERATIONS', roles: ['admin', 'executive_officer', 'senior_officer'] },
 ]
@@ -1612,6 +1614,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   else if (active === 'guidelines') view = <GuidelinesView role={user.role} go={go} />
   else if (active === 'enforcement-map') view = <EnforcementMapView />
   else if (active === 'admin-users') view = <UsersView />
+    else if (active === 'admin-companies') view = <CompaniesView /> // NEW
   else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />
   else if (active === 'analytics') view = <AnalyticsView />
   else view = <GenericModule view={active} go={go} />
@@ -1655,3 +1658,18 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
 }
 
 export { NiyamAIApp }
+export {
+  Dashboard,
+  InspectionView,
+  CaptureView,
+  ExtractionView,
+  AnalysisView,
+  ResultView,
+  ReportView,
+  InspectionHistoryView,
+  InspectionDetailView,
+  ProgressSteps,
+  Badge,
+  Avatar,
+  ThemeToggle,
+}
