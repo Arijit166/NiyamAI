@@ -13,6 +13,10 @@ export interface IUser {
   lastActiveAt?: Date | null  
   jurisdictionCity?: string | null   
   jurisdictionState?: string | null 
+  identificationCode?: string | null
+  idProofType?: 'aadhar' | 'pan' | null
+  idProofUrl?: string | null
+  invitationId?: string | null
   createdAt: Date
 }
 
@@ -25,7 +29,11 @@ const UserSchema = new Schema<IUser>({
   authProvider: { type: String, enum: ['credentials', 'google'], required: true },
   lastActiveAt: { type: Date, default: null },
   jurisdictionCity: { type: String, default: null }, 
-  jurisdictionState: { type: String, default: null }, 
+  jurisdictionState: { type: String, default: null },
+  identificationCode: { type: String, default: null, unique: true, sparse: true },
+  idProofType: { type: String, enum: ['aadhar', 'pan'], default: null },
+  idProofUrl: { type: String, default: null },
+  invitationId: { type: String, default: null }, 
   createdAt: { type: Date, default: Date.now },
 })
 

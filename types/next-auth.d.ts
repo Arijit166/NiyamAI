@@ -12,6 +12,8 @@ declare module 'next-auth' {
       role: UserRole | null
       jurisdictionCity?: string | null   // NEW
       jurisdictionState?: string | null 
+      identificationCode?: string | null   // NEW
+      codeVerified?: boolean
     }
   }
   interface User {
@@ -19,6 +21,7 @@ declare module 'next-auth' {
     role?: UserRole | null
     jurisdictionCity?: string | null     // NEW
     jurisdictionState?: string | null
+    identificationCode?: string | null
   }
 }
 
@@ -28,5 +31,7 @@ declare module 'next-auth/jwt' {
     role: UserRole | null
     jurisdictionCity?: string | null     // NEW
     jurisdictionState?: string | null
+    hasIdentificationCode?: boolean   // NEW
+    codeVerified?: boolean
   }
 }

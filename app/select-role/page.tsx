@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { ScanLine, ShieldCheck, ArrowRight, AlertCircle } from 'lucide-react'
 
 const ROLES = [
@@ -13,36 +12,80 @@ const ROLES = [
 
 export default function SelectRolePage() {
   const { update } = useSession()
-  const router = useRouter()
   const [role, setRole] = useState('')
   const [passkey, setPasskey] = useState('')
+  const [identificationCode, setIdentificationCode] = useState('')   // NEW — replaces free-typed jurisdictionCity
   const [jurisdictionCity, setJurisdictionCity] = useState('')
+  const [idProofType, setIdProofType] = useState<'aadhar' | 'pan' | ''>('') // NEW
+  const [idProofFile, setIdProofFile] = useState<File | null>(null)  // NEW
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const handleRoleChange = (nextRole: string) => {
+    setRole(nextRole)
+    setIdProofType('')
+    setIdProofFile(null)
+    setError('')
+  }
 
   const submit = async () => {
     setError('')
     if (!role) return setError('Please select a role.')
     if (role === 'admin' && !passkey) return setError('Admin passkey is required.')
-    if (role !== 'admin' && !jurisdictionCity.trim()) return setError('Please enter your jurisdiction city.')
+
+    // NEW — officers verify via their invitation code + ID proof instead of typing a city
+    if (role !== 'admin') {
+      if (!identificationCode.trim()) return setError('Please enter the identification code from your invitation email.')
+      if (!jurisdictionCity.trim()) return setError('Please enter your jurisdiction city.')
+      if (!idProofType) return setError('Please select an ID proof type.')
+      if (!idProofFile) return setError('Please upload your ID proof (Aadhar or PAN).')
+    }
+
     setLoading(true)
+
+    // NEW — upload the ID proof first, then submit role selection with the returned URL
+    let idProofUrl = ''
+    if (role !== 'admin' && idProofFile) {
+      const fd = new FormData()
+      fd.append('file', idProofFile)
+      fd.append('idProofType', idProofType)
+      const uploadRes = await fetch('/api/upload/id-proof', { method: 'POST', body: fd })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok) {
+        setLoading(false)
+        return setError(uploadData.error || 'Failed to upload ID proof.')
+      }
+      idProofUrl = uploadData.url
+    }
 
     const res = await fetch('/api/auth/set-role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, adminPasskey: passkey, jurisdictionCity: jurisdictionCity.trim() }),
+      body: JSON.stringify({
+        role,
+        adminPasskey: passkey,
+        identificationCode: identificationCode.trim(),
+        jurisdictionCity: jurisdictionCity.trim(),
+        idProofType: role === 'admin' ? null : idProofType,
+        idProofUrl: role === 'admin' ? null : idProofUrl,
+      }),
     })
     const data = await res.json()
     setLoading(false)
 
     if (!res.ok) return setError(data.error || 'Something went wrong.')
 
-    await update({
+    const updatedSession = await update({
       role: data.role,
       jurisdictionCity: data.jurisdictionCity,
       jurisdictionState: data.jurisdictionState,
+      codeVerified: true,
     })
-    router.push('/')
+    if (updatedSession?.user?.role !== data.role) {
+      setLoading(false)
+      return setError('Your role could not be saved. Please try again.')
+    }
+    window.location.assign('/')
   }
 
   return (
@@ -56,7 +99,13 @@ export default function SelectRolePage() {
         <div className="role-select-list">
           {ROLES.map((r) => (
             <label key={r.value} className="check-label">
-              <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} />
+              <input
+                type="radio"
+                name="role"
+                value={r.value}
+                checked={role === r.value}
+                onChange={() => handleRoleChange(r.value)}
+              />
               {r.label}
             </label>
           ))}
@@ -68,10 +117,51 @@ export default function SelectRolePage() {
           </label>
         )}
 
+        {/* NEW — replaces the old free-typed jurisdiction city input for officers */}
         {role !== 'admin' && role && (
-          <label className="admin-passkey-group">Jurisdiction city
-            <input type="text" placeholder="Enter your city" value={jurisdictionCity} onChange={(e) => setJurisdictionCity(e.target.value)} />
-          </label>
+          <>
+            <label className="admin-passkey-group">Identification code
+              <input
+                type="text"
+                placeholder="Sent to you by your admin, e.g. NIYAM-XXXX-XXXX"
+                value={identificationCode}
+                onChange={(e) => setIdentificationCode(e.target.value)}
+              />
+            </label>
+
+            <label className="admin-passkey-group">Jurisdiction city
+              <input
+                type="text"
+                placeholder="Enter your assigned city, e.g. Kolkata"
+                value={jurisdictionCity}
+                onChange={(e) => setJurisdictionCity(e.target.value)}
+              />
+            </label>
+
+            <label className="admin-passkey-group">ID proof type
+              <select
+                value={idProofType}
+                onChange={(e) => {
+                  setIdProofType(e.currentTarget.value as 'aadhar' | 'pan' | '')
+                  setIdProofFile(null)
+                }}
+              >
+                <option value="">Select ID type</option>
+                <option value="aadhar">Aadhar Card</option>
+                <option value="pan">PAN Card</option>
+              </select>
+            </label>
+
+            {idProofType && (
+              <label className="admin-passkey-group">Upload {idProofType === 'aadhar' ? 'Aadhar' : 'PAN'} proof
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setIdProofFile(e.currentTarget.files?.[0] || null)}
+                />
+              </label>
+            )}
+          </>
         )}
 
         {error && (

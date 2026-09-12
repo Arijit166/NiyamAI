@@ -3312,6 +3312,38 @@ tbody tr:hover {
     0 0 25px rgba(34, 211, 238, 0.07);
 }
 
+.auth-card input[type="file"] {
+  height: auto;
+  min-height: 46px;
+  padding: 9px;
+  cursor: pointer;
+}
+
+.auth-card input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 7px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.auth-admin-toggle {
+  display: block;
+  margin: 14px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-admin-toggle:hover {
+  text-decoration: underline;
+}
+
 .auth-options {
   display: flex;
   justify-content: space-between;
@@ -3503,6 +3535,23 @@ tbody tr:hover {
 
 .admin-passkey-group input:focus {
   border-color: var(--cyan);
+}
+
+.onboarding-card input[type="file"] {
+  height: auto;
+  min-height: 46px;
+  padding: 9px;
+  cursor: pointer;
+}
+
+.onboarding-card input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 7px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
 }
 
 .select-role-submit {
@@ -4022,6 +4071,46 @@ tbody tr:hover {
 
 .role-select-list .check-label input[type="radio"] {
   display: none;
+}
+
+.invite-email-label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.invite-email-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  outline: 0;
+}
+
+.invite-email-input::placeholder {
+  color: var(--muted);
+  opacity: .8;
+}
+
+.invite-email-input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.10);
+}
+
+.transfer-city-field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* Officer avatar hover in topbar */

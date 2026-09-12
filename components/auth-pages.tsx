@@ -44,6 +44,10 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
   const [jurisdictionCity, setJurisdictionCity] = useState('')
   const [error, setError] = useState(urlError ? ERROR_MESSAGES[urlError] || 'Something went wrong.' : '')
   const [loading, setLoading] = useState(false)
+  const [identificationCode, setIdentificationCode] = useState('')      // NEW
+  const [idProofType, setIdProofType] = useState<'aadhar' | 'pan' | ''>('') // NEW
+  const [idProofFile, setIdProofFile] = useState<File | null>(null)     // NEW
+  const [isAdminLogin, setIsAdminLogin] = useState(false)
 
   const handleGoogle = () => {
     document.cookie = `auth_intent=${signup ? 'signup' : 'login'}; path=/; max-age=300; samesite=lax`
@@ -58,26 +62,52 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
 
     if (signup) {
       if (!name || !role) return setError('Please fill in all fields and select a role.')
-      
+
       const passError = getPasswordError(password)
       if (passError) return setError(passError)
-      
+
       if (password !== confirmPassword) return setError('Passwords do not match.')
       if (role === 'admin' && !passkey) return setError('Admin passkey is required.')
-      if (role !== 'admin' && !jurisdictionCity.trim()) return setError('Please enter your jurisdiction city.')
+
+      // NEW — officers need the invite code + ID proof instead of a free-typed city
+      if (role !== 'admin') {
+        if (!identificationCode.trim()) return setError('Please enter the identification code from your invitation email.')
+        if (!jurisdictionCity.trim()) return setError('Please enter your jurisdiction city.')
+        if (!idProofType) return setError('Please select an ID proof type.')
+        if (!idProofFile) return setError('Please upload your ID proof.')
+      }
 
       setLoading(true)
+
+      let idProofUrl = ''
+      if (role !== 'admin' && idProofFile) {
+        const fd = new FormData()
+        fd.append('file', idProofFile)
+        fd.append('idProofType', idProofType)
+        const uploadRes = await fetch('/api/upload/id-proof', { method: 'POST', body: fd })
+        const uploadData = await uploadRes.json()
+        if (!uploadRes.ok) { setLoading(false); return setError(uploadData.error || 'Failed to upload ID proof.') }
+        idProofUrl = uploadData.url
+      }
+
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: email.trim(), password, role, adminPasskey: passkey, jurisdictionCity: jurisdictionCity.trim() }),
+        body: JSON.stringify({
+          name, email: email.trim(), password, role,
+          adminPasskey: passkey,
+          identificationCode: identificationCode.trim(),
+          jurisdictionCity: jurisdictionCity.trim(),
+          idProofType: role === 'admin' ? null : idProofType,
+          idProofUrl: role === 'admin' ? null : idProofUrl,
+        }),
       })
       const data = await res.json()
       setLoading(false)
       if (!res.ok) return setError(data.error || 'Something went wrong.')
 
-      // Auto sign-in after successful signup
-      const signInRes = await signIn('credentials', { email: email.trim(), password, redirect: false })
+      // NEW — pass the code through on the auto sign-in too
+      const signInRes = await signIn('credentials', { email: email.trim(), password, identificationCode: identificationCode.trim(), redirect: false })
       if (signInRes?.error) {
         router.push('/login')
       } else {
@@ -87,7 +117,7 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
     }
 
     setLoading(true)
-    const res = await signIn('credentials', { email: email.trim(), password, redirect: false })
+    const res = await signIn('credentials', { email: email.trim(), password, identificationCode: identificationCode.trim(), redirect: false })
     setLoading(false)
 
     if (res?.error) return setError(ERROR_MESSAGES[res.error] || res.error)
@@ -138,6 +168,30 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
             )}
           </label>
 
+          {!signup && (
+            <>
+              {!isAdminLogin && (
+                <label>Identification code
+                  <input
+                    value={identificationCode}
+                    onChange={(e) => setIdentificationCode(e.target.value)}
+                    placeholder="Officers only — from your invitation email"
+                  />
+                </label>
+              )}
+              <button
+                type="button"
+                className="auth-admin-toggle"
+                onClick={() => {
+                  setIsAdminLogin((current) => !current)
+                  setIdentificationCode('')
+                }}
+              >
+                {isAdminLogin ? 'Continue as officer' : 'Are you an admin?'}
+              </button>
+            </>
+          )}
+
           {signup && (
             <>
               <label>Confirm password
@@ -147,7 +201,17 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
               <div className="role-select-list">
                 {ROLES.map((r) => (
                   <label key={r.value} className="check-label">
-                    <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={() => setRole(r.value)} />
+                    <input
+                      type="radio"
+                      name="role"
+                      value={r.value}
+                      checked={role === r.value}
+                      onChange={(e) => {
+                        setRole(e.currentTarget.value)
+                        setIdProofType('')
+                        setIdProofFile(null)
+                      }}
+                    />
                     {r.label}
                   </label>
                 ))}
@@ -160,9 +224,43 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
               )}
 
               {role !== 'admin' && role && (
-                <label>Jurisdiction city
-                  <input type="text" value={jurisdictionCity} onChange={(e) => setJurisdictionCity(e.target.value)} placeholder="Enter your city" />
-                </label>
+                <>
+                  <label>Identification code
+                    <input
+                      value={identificationCode}
+                      onChange={(e) => setIdentificationCode(e.target.value)}
+                      placeholder="Sent to you by your admin, e.g. NIYAM-XXXX-XXXX"
+                    />
+                  </label>
+
+                  <label>Jurisdiction city
+                    <input
+                      value={jurisdictionCity}
+                      onChange={(e) => setJurisdictionCity(e.target.value)}
+                      placeholder="Enter your assigned city, e.g. Kolkata"
+                    />
+                  </label>
+
+                  <label>ID proof type
+                    <select
+                      value={idProofType}
+                      onChange={(e) => {
+                        setIdProofType(e.currentTarget.value as 'aadhar' | 'pan' | '')
+                        setIdProofFile(null)
+                      }}
+                    >
+                      <option value="">Select ID type</option>
+                      <option value="aadhar">Aadhar Card</option>
+                      <option value="pan">PAN Card</option>
+                    </select>
+                  </label>
+
+                  {idProofType && (
+                    <label>Upload {idProofType === 'aadhar' ? 'Aadhar' : 'PAN'} proof
+                      <input type="file" accept="image/*,application/pdf" onChange={(e) => setIdProofFile(e.currentTarget.files?.[0] || null)} />
+                    </label>
+                  )}
+                </>
               )}
             </>
           )}

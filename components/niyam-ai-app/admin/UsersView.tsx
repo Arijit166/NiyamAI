@@ -10,8 +10,11 @@ type OfficerUser = {
   image?: string | null
   role: 'executive_officer' | 'senior_officer'
   isOnline: boolean
-  jurisdictionCity?: string | null    // NEW
-  jurisdictionState?: string | null   // NEW
+  jurisdictionCity?: string | null
+  jurisdictionState?: string | null
+  identificationCode?: string | null   // NEW
+  idProofType?: 'aadhar' | 'pan' | null // NEW
+  idProofUrl?: string | null            // NEW
   stats: { totalInspections?: number; pending?: number; accepted?: number; rejected?: number }
   createdAt: string
 }
@@ -65,43 +68,140 @@ function InspectionAuditRow({ insp, reviewStatus }: { insp: InspectionRow; revie
 }
 
 function OfficerDetail({ user, onBack }: { user: OfficerUser; onBack: () => void }) {
-  const [tab, setTab] = useState<'pending' | 'accepted' | 'rejected'>(user.role === 'senior_officer' ? 'pending' : 'pending')
+  const [tab, setTab] = useState<'pending' | 'accepted' | 'rejected'>('pending')
   const [rows, setRows] = useState<InspectionRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // NEW — city transfer state
+  const [officer, setOfficer] = useState(user)
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [newCity, setNewCity] = useState('')
+  const [transferError, setTransferError] = useState<string | null>(null)
+  const [transferring, setTransferring] = useState(false)
+
+  const handleTransfer = async () => {
+    setTransferError(null)
+    if (!newCity.trim()) return setTransferError('Please enter a city.')
+    setTransferring(true)
+    const res = await fetch(`/api/admin/officers/${officer._id}/transfer-city`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jurisdictionCity: newCity.trim() }),
+    })
+    const data = await res.json()
+    setTransferring(false)
+    if (!res.ok) return setTransferError(data.error || 'Transfer failed.')
+    setOfficer((o) => ({ ...o, jurisdictionCity: data.jurisdictionCity, jurisdictionState: data.jurisdictionState }))
+    setTransferOpen(false)
+    setNewCity('')
+  }
+
   useEffect(() => {
     setLoading(true)
     setError(null)
-    const url = user.role === 'senior_officer'
-      ? `/api/admin/users/${user._id}/inspections?status=${tab}`
-      : `/api/admin/users/${user._id}/inspections`
+    const url = officer.role === 'senior_officer'
+      ? `/api/admin/users/${officer._id}/inspections?status=${tab}`
+      : `/api/admin/users/${officer._id}/inspections`
     fetch(url)
       .then((res) => { if (!res.ok) throw new Error('Failed to load inspections'); return res.json() })
       .then((d) => setRows(d.inspections || []))
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load inspections'))
       .finally(() => setLoading(false))
-  }, [user._id, user.role, tab])
+  }, [officer._id, officer.role, tab])
 
   return (
     <div>
       <button className="text-button" onClick={onBack} style={{ marginBottom: 12 }}>← Back to users</button>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <Avatar name={user.name} image={user.image} />
-        <div><strong>{user.name}</strong><br /><small style={{ color: '#64748b' }}>{user.email}</small></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <Avatar name={officer.name} image={officer.image} />
+        <div><strong>{officer.name}</strong><br /><small style={{ color: '#64748b' }}>{officer.email}</small></div>
       </div>
-      {user.role === 'senior_officer' && (
+
+      {/* NEW — identification code + jurisdiction + transfer */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        {officer.identificationCode && (
+          <span className="badge badge-muted">ID: {officer.identificationCode}</span>
+        )}
+        <span className="badge badge-muted">
+          {officer.jurisdictionCity || 'No jurisdiction'}{officer.jurisdictionState ? `, ${officer.jurisdictionState}` : ''}
+        </span>
+        {officer.idProofUrl && (
+          <a href={officer.idProofUrl} target="_blank" rel="noreferrer" className="text-button" style={{ fontSize: 12 }}>
+            View {officer.idProofType?.toUpperCase()} proof
+          </a>
+        )}
+        <button className="text-button" style={{ fontSize: 12 }} onClick={() => setTransferOpen((v) => !v)}>
+          {transferOpen ? 'Cancel' : 'Transfer city'}
+        </button>
+      </div>
+
+      {transferOpen && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+          <label className="transfer-city-field">
+            New jurisdiction city
+            <input className="invite-email-input" value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="e.g. Kolkata" />
+          </label>
+          <button className="button primary" onClick={handleTransfer} disabled={transferring}>
+            {transferring ? 'Transferring...' : 'Confirm'}
+          </button>
+        </div>
+      )}
+      {transferError && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{transferError}</p>}
+
+      {officer.role === 'senior_officer' && (
         <div className="inspection-filter-group" style={{ marginBottom: 16 }}>
-          <button className={`inspection-filter-chip ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}><Clock3 size={13} /> Pending ({user.stats.pending ?? 0})</button>
-          <button className={`inspection-filter-chip ${tab === 'accepted' ? 'active' : ''}`} onClick={() => setTab('accepted')}><CheckCircle2 size={13} /> Accepted ({user.stats.accepted ?? 0})</button>
-          <button className={`inspection-filter-chip ${tab === 'rejected' ? 'active' : ''}`} onClick={() => setTab('rejected')}><XCircle size={13} /> Rejected ({user.stats.rejected ?? 0})</button>
+          <button className={`inspection-filter-chip ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}><Clock3 size={13} /> Pending ({officer.stats.pending ?? 0})</button>
+          <button className={`inspection-filter-chip ${tab === 'accepted' ? 'active' : ''}`} onClick={() => setTab('accepted')}><CheckCircle2 size={13} /> Accepted ({officer.stats.accepted ?? 0})</button>
+          <button className={`inspection-filter-chip ${tab === 'rejected' ? 'active' : ''}`} onClick={() => setTab('rejected')}><XCircle size={13} /> Rejected ({officer.stats.rejected ?? 0})</button>
         </div>
       )}
       {loading && <p style={{ color: '#64748b', fontSize: 12 }}>Loading...</p>}
       {error && <p style={{ color: '#ef4444', fontSize: 12 }}>{error}</p>}
       {!loading && !error && rows.length === 0 && <div className="empty-state panel"><h3>Nothing here yet</h3></div>}
       <div className="inspection-row-list">
-        {rows.map((r) => <InspectionAuditRow key={r._id} insp={r} reviewStatus={user.role === 'senior_officer' ? tab : undefined} />)}
+        {rows.map((r) => <InspectionAuditRow key={r._id} insp={r} reviewStatus={officer.role === 'senior_officer' ? tab : undefined} />)}
+      </div>
+    </div>
+  )
+}
+
+function InviteOfficerForm({ role, onInvited }: { role: 'executive_officer' | 'senior_officer'; onInvited: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+
+  const handleInvite = async () => {
+    setError(null)
+    if (!email.trim()) return setError('Please enter an email address.')
+    setSending(true)
+    const res = await fetch('/api/admin/invitations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), role }),
+    })
+    const data = await res.json()
+    setSending(false)
+    if (!res.ok) return setError(data.error || 'Failed to send invite.')
+    setEmail(''); setOpen(false)
+    onInvited()
+  }
+
+  if (!open) {
+    return <button className="button primary" onClick={() => setOpen(true)} style={{ marginBottom: 16 }}>+ Invite officer</button>
+  }
+
+  return (
+    <div className="panel invite-form" style={{ padding: 16, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <label className="invite-email-label">
+        Email address
+        <input className="invite-email-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="officer@example.com" />
+      </label>
+      {error && <p style={{ color: '#ef4444', fontSize: 12 }}>{error}</p>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="button primary" onClick={handleInvite} disabled={sending}>{sending ? 'Sending...' : 'Send invite'}</button>
+        <button className="text-button" onClick={() => setOpen(false)}>Cancel</button>
       </div>
     </div>
   )
@@ -140,6 +240,7 @@ export function UsersView() {
         </section>
       ) : (
         <>
+          <InviteOfficerForm role={tab} onInvited={() => { setLoading(true); fetch('/api/admin/users').then((r) => r.json()).then((d) => setUsers(d.users || [])).finally(() => setLoading(false)) }} />
           <div className="inspection-filter-group" style={{ marginBottom: 16 }}>
             <button className={`inspection-filter-chip ${tab === 'executive_officer' ? 'active' : ''}`} onClick={() => setTab('executive_officer')}>Executive Officers</button>
             <button className={`inspection-filter-chip ${tab === 'senior_officer' ? 'active' : ''}`} onClick={() => setTab('senior_officer')}>Senior Officers</button>
@@ -161,6 +262,9 @@ export function UsersView() {
                       <span style={{ marginLeft: 8, color: '#64748b' }}>
                         • {u.jurisdictionCity}{u.jurisdictionCity && u.jurisdictionState ? ', ' : ''}{u.jurisdictionState}
                       </span>
+                    )}
+                    {u.identificationCode && (
+                      <span style={{ marginLeft: 8, color: '#64748b' }}>• ID: {u.identificationCode}</span>
                     )}
                     {u.role === 'executive_officer'
                       ? <span style={{ marginLeft: 8, color: '#64748b' }}>• <ClipboardCheck size={11} style={{ verticalAlign: -1 }} /> {u.stats.totalInspections ?? 0} inspections</span>
