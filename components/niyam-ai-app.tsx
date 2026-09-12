@@ -16,6 +16,7 @@ import {
   PackageCheck, PanelLeftClose, PanelLeftOpen, Radar, Search, ScanLine, Sun, Moon,
   Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Target, Upload, UserRound,
   UsersRound, X, Zap, LogOut, Edit3, RefreshCw, Ban,
+  BookOpen, Lightbulb, PlayCircle, FileWarning, Layers, MousePointerClick, // NEW
 } from 'lucide-react'
 import { SeniorReviewView } from './SeniorReviewView'
 
@@ -72,6 +73,7 @@ const nav = [
   { label: 'New Inspection', icon: ScanLine, view: 'inspection', section: 'OPERATIONS', accent: true, roles: ['executive_officer'] },
   { label: 'Inspections', icon: ClipboardCheck, view: 'history', section: 'OPERATIONS', roles: ['executive_officer'] },
   { label: 'Review Queue', icon: Eye, view: 'review-queue', section: 'OPERATIONS', roles: ['senior_officer'] },
+  { label: 'Guidelines', icon: BookOpen, view: 'guidelines', section: 'OPERATIONS', roles: ['executive_officer', 'senior_officer'] }, // NEW
   { label: 'Enforcement Map', icon: Radar, view: 'enforcement-map', section: 'INTELLIGENCE', roles: ['admin'] },
   { label: 'Users', icon: UsersRound, view: 'admin-users', section: 'INTELLIGENCE', roles: ['admin'] },
   { label: 'Analytics', icon: BarChart3, view: 'analytics', section: 'INTELLIGENCE', roles: ['admin'] },
@@ -1127,6 +1129,153 @@ function InspectionDetailView({ inspectionId, onBack, onGenerateReport, onEdit }
   </div>
 }
 
+function GuidelineStep({ index, icon: Icon, title, description, tips }: {
+  index: number
+  icon: React.ElementType
+  title: string
+  description: string
+  tips?: string[]
+}) {
+  return (
+    <div className="panel" style={{ padding: 18, marginBottom: 14, display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      <div style={{
+        flexShrink: 0, width: 38, height: 38, borderRadius: 10,
+        background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontWeight: 700, fontSize: 14, boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+      }}>
+        {index}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Icon size={16} />
+          <h3 style={{ margin: 0, fontSize: 15 }}>{title}</h3>
+        </div>
+        <p style={{ margin: 0, color: '#64748b', fontSize: 13, lineHeight: 1.65 }}>{description}</p>
+        {tips && tips.length > 0 && (
+          <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {tips.map((t, i) => (
+              <li key={i} style={{ fontSize: 12, color: '#94a3b8' }}>{t}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function GuidelineTipCard({ icon: Icon, title, desc, tone }: { icon: React.ElementType; title: string; desc: string; tone: 'blue' | 'green' | 'amber' | 'purple' | 'red' }) {
+  return (
+    <div className="stat-card" style={{ cursor: 'default' }}>
+      <div className="stat-top"><span className={`stat-icon ${tone}`}><Icon size={17} /></span></div>
+      <div className="stat-value" style={{ fontSize: 15 }}>{title}</div>
+      <div className="stat-label" style={{ lineHeight: 1.5 }}>{desc}</div>
+    </div>
+  )
+}
+
+function GuidelinesView({ role, go }: { role?: string | null; go: (v: string) => void }) {
+  const isExecutive = role === 'executive_officer'
+
+  const executiveSteps = [
+    {
+      icon: ScanLine, title: 'Start a new inspection',
+      description: 'Go to "New Inspection" and fill in the inspection type, premises name, and any field notes. Location is auto-detected via GPS, but you can also type a city/address directly — it resolves automatically as you type.',
+      tips: ['Use "Use current location" when standing at the premises for the most accurate record.', 'Notes are part of the permanent audit trail — keep them factual.'],
+    },
+    {
+      icon: Camera, title: 'Capture the package',
+      description: 'Take one clear, well-lit photo of the product label using your camera, or upload an existing image. A single good photo is enough — NiyamAI extracts every declaration it can from it.',
+      tips: ['Keep the full label flat and in frame — avoid glare and blur.', 'If a calibration marker is detected, enter its real printed size in mm when prompted.'],
+    },
+    {
+      icon: FileWarning, title: 'Resolve missing fields',
+      description: 'On the Declaration Extraction screen, review every field NiyamAI read off the label. Anything it couldn\'t confidently extract is flagged — you can recapture just that spot, type the value manually, or mark it not applicable.',
+      tips: ['"Not applicable" should only be used when the field genuinely doesn\'t apply to this product.', 'Toggle "This is an imported product" if the label shows a foreign origin.'],
+    },
+    {
+      icon: BrainCircuit, title: 'Run the compliance check',
+      description: 'Once every mandatory field is resolved, run the analysis. The deterministic rule engine — not the AI — validates the declarations against the applicable Legal Metrology rule version and returns a score and any violations.',
+    },
+    {
+      icon: FileText, title: 'Save the case & pass it on',
+      description: 'From the Report screen, generate a PDF for your records, then click "Save case" to persist it. Once saved, use "Pass to Senior Officer" to send it into the review queue.',
+      tips: ['A case must be saved before it can be passed on.', 'You can revisit any saved case from "Inspections" to edit or regenerate its report.'],
+    },
+  ]
+
+  const seniorSteps = [
+    {
+      icon: Eye, title: 'Open the Review Queue',
+      description: 'Every case an executive officer has passed to you lands here. Use the search bar and the Pending / Accepted / Rejected filters to find what needs your attention.',
+    },
+    {
+      icon: PlayCircle, title: 'View the report',
+      description: 'Click "View report" on any case to open the full evidence-backed PDF inline — declarations, compliance score, and every violation found — before making a decision.',
+      tips: ['Always review the full report, not just the summary badge, before accepting or rejecting.'],
+    },
+    {
+      icon: Check, title: 'Accept a case',
+      description: 'If the evidence and compliance result are satisfactory, click "Accept." This closes the case as reviewed and moves it out of your pending queue.',
+    },
+    {
+      icon: Ban, title: 'Reject a case',
+      description: 'If something needs correction, click "Reject" and write a clear reason. This reason is shown directly to the executive officer against that case so they know exactly what to fix.',
+      tips: ['Be specific — "blurry label" or "MRP not verified" is more useful than "incomplete."'],
+    },
+    {
+      icon: Layers, title: 'Track outcomes',
+      description: 'Switch between the Pending, Accepted, and Rejected tabs any time to see the current state of every case that has passed through you.',
+    },
+  ]
+
+  const steps = isExecutive ? executiveSteps : seniorSteps
+
+  return (
+    <div className="page-content">
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow"><BookOpen size={13} /> HOW THIS WORKS</div>
+          <h1>Guidelines</h1>
+          <p>{isExecutive
+            ? 'A quick walkthrough of the inspection workflow, end to end.'
+            : 'A quick walkthrough of reviewing cases in your queue.'}</p>
+        </div>
+        <div className="heading-actions">
+          <button className="button primary" onClick={() => go(isExecutive ? 'inspection' : 'review-queue')}>
+            {isExecutive ? <ScanLine size={16} /> : <Eye size={16} />}
+            {isExecutive ? 'Start inspection' : 'Go to review queue'}
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="stats-grid" style={{ marginBottom: 24 }}>
+        {isExecutive ? (
+          <>
+            <GuidelineTipCard icon={MousePointerClick} tone="blue" title="One photo is enough" desc="A single clear label photo drives the entire extraction pipeline." />
+            <GuidelineTipCard icon={ShieldCheck} tone="green" title="You have the final say" desc="AI suggestions are never final — every field can be edited or overridden." />
+            <GuidelineTipCard icon={Lightbulb} tone="amber" title="Save before passing on" desc="A case can only be sent to a senior officer after it's saved." />
+          </>
+        ) : (
+          <>
+            <GuidelineTipCard icon={Eye} tone="blue" title="Review the full report" desc="Open the PDF before deciding — don't rely on the badge alone." />
+            <GuidelineTipCard icon={Ban} tone="red" title="Give a clear reason" desc="Rejection reasons are shown directly to the executive officer." />
+            <GuidelineTipCard icon={Lightbulb} tone="amber" title="Filter to stay organized" desc="Use the status tabs to focus on what's still pending." />
+          </>
+        )}
+      </div>
+
+      <section>
+        <div className="eyebrow" style={{ marginBottom: 12 }}><Sparkles size={13} /> STEP BY STEP</div>
+        {steps.map((s, i) => (
+          <GuidelineStep key={s.title} index={i + 1} icon={s.icon} title={s.title} description={s.description} tips={(s as any).tips} />
+        ))}
+      </section>
+    </div>
+  )
+}
+
 function GenericModule({ view, go }: { view: string; go: (v: string) => void }) {
   const config: Record<string, { eyebrow: string; title: string; desc: string; icon: React.ElementType }> = {
     evidence: { eyebrow: 'SECURE AUDIT', title: 'Evidence vault', desc: 'Cryptographically verified evidence linked to every inspection finding.', icon: Fingerprint },
@@ -1460,6 +1609,7 @@ export default function NiyamAIApp({ initialView = 'overview' }: { initialView?:
   )
   else if (active === 'history') view = <InspectionHistoryView onSelect={(insp) => { setSelectedInspectionId(insp._id); go('inspection-detail') }} />
   else if (active === 'review-queue') view = <SeniorReviewView />
+  else if (active === 'guidelines') view = <GuidelinesView role={user.role} go={go} />
   else if (active === 'enforcement-map') view = <EnforcementMapView />
   else if (active === 'admin-users') view = <UsersView />
   else if (active === 'inspection-detail') view = <InspectionDetailView inspectionId={selectedInspectionId} onBack={() => go('history')} onGenerateReport={handleLoadForReport} onEdit={handleLoadForEdit} />
