@@ -53,6 +53,22 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
   const [apiKey, setApiKey] = useState('')                // NEW — company login
   const [pendingNotice, setPendingNotice] = useState('')  // NEW — post-signup message for companies
 
+  const authAudience = signup
+    ? role === 'compliance_head' ? 'compliance head' : role === 'admin' ? 'admin' : 'officer'
+    : loginMode === 'company' ? 'compliance head' : loginMode === 'manager' ? 'product manager' : loginMode === 'admin' ? 'admin' : 'officer'
+  const audienceLabel = authAudience === 'compliance head'
+    ? 'Compliance Head'
+    : authAudience === 'product manager'
+      ? 'Product Manager'
+      : authAudience === 'admin'
+        ? 'Admin'
+      : 'Officer'
+  const accountDescription = authAudience === 'officer'
+    ? 'your enforcement intelligence workspace'
+    : authAudience === 'admin'
+      ? 'the administration workspace'
+      : 'your company compliance workspace'
+
   const handleGoogle = () => {
     document.cookie = `auth_intent=${signup ? 'signup' : 'login'}; path=/; max-age=300; samesite=lax`
     signIn('google', { callbackUrl: '/' })
@@ -176,8 +192,8 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
             <div className="eyebrow">AUTHORIZED ACCESS</div>
             <ThemeToggle />
           </div>
-          <h2>{signup ? 'Create officer account' : 'Welcome back, Officer.'}</h2>
-          <p>{signup ? 'Set up your secure enforcement workspace.' : 'Sign in to your enforcement intelligence workspace.'}</p>
+          <h2>{signup ? `Create ${authAudience} account` : `Welcome back, ${audienceLabel}.`}</h2>
+          <p>{signup ? `Set up your secure ${authAudience === 'officer' ? 'enforcement' : 'company compliance'} workspace.` : `Sign in to ${accountDescription}.`}</p>
 
           {signup && (
             <label>Full name
@@ -185,8 +201,8 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
             </label>
           )}
 
-          <label>Official email / Officer ID
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="officer@niyam.ai" />
+          <label>{authAudience === 'officer' ? 'Official email / Officer ID' : 'Work email'}
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={authAudience === 'officer' ? 'officer@niyam.ai' : 'name@company.com'} />
           </label>
 
           <label>Password
@@ -341,7 +357,7 @@ function AuthShell({ signup = false }: { signup?: boolean }) {
               </button>
 
               <p className="auth-switch" style={{ marginTop: '24px' }}>
-                {signup ? 'Already registered?' : 'New enforcement officer?'}{' '}
+                {signup ? 'Already registered?' : authAudience === 'officer' ? 'New enforcement officer?' : authAudience === 'admin' ? 'New administrator?' : 'New company team member?'}{' '}
                 <a href={signup ? '/login' : '/signup'}>{signup ? 'Sign in' : 'Create account'}</a>
               </p>
             </>
