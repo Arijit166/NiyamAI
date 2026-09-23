@@ -116,6 +116,88 @@ Start the production server:
 npm run start
 ```
 
+## Deploy the OCR microservice to Azure Container Instances
+
+The microservice is packaged by [microservice/Dockerfile](microservice/Dockerfile). Azure Container Instances is not an always-free service. An **Azure for Students** subscription uses student credit while the container is running, so delete or stop the resource when you are finished testing.
+
+### 1. Start Docker and build the image
+
+Start Docker Desktop with its Linux engine enabled. From the repository root, run:
+
+
+```powershell
+docker build -t niyamai-ocr:latest .\microservice
+```
+
+### 2. Create an Azure Container Registry
+
+In Azure Portal, create **Container registries** with the same subscription and resource group you will use for the container. Choose a globally unique registry name, for example `niyamaiacr123`.
+
+Then publish the image:
+
+```powershell
+az login
+az acr login --name <registry-name>
+docker tag niyamai-ocr:latest <registry-name>.azurecr.io/niyamai-ocr:latest
+docker push <registry-name>.azurecr.io/niyamai-ocr:latest
+```
+
+The registry also consumes Azure for Students credit. Do not enable the admin user unless you specifically need username/password authentication.
+
+### 3. Fill in Create container instance
+
+Use these values in the Azure page shown above:
+
+* **Subscription:** Azure for Students
+* **Resource group:** create or select one, for example `niyamai-rg`
+* **Container name:** `niyamai-ocr`
+* **Region:** the nearest available region to your users
+* **SKU:** Standard
+* **Image source:** Azure Container Registry
+* **Registry:** your registry name
+* **Image:** `niyamai-ocr`
+* **Tag:** `latest`
+* **OS type:** Linux
+* **Size:** use **1 vCPU, 1.5 GiB** for the first test; use **2 vCPU, 4 GiB** if startup is killed for memory
+
+On **Networking**, select **Public**, choose a unique DNS name label, and expose TCP port `8000`. Set the restart policy to **On failure**.
+
+On **Advanced**, add these environment variables. Add the API key as a **secure** value:
+
+```text
+OPENAI_API_KEY=<your Groq or OpenAI-compatible API key>
+OPENAI_BASE_URL=<your provider base URL>
+LLM_MODEL=qwen/qwen3.6-27b
+```
+
+Review and create the container. The first startup can take several minutes because PaddleOCR downloads its models.
+
+### 4. Test the microservice
+
+After deployment, copy the container's FQDN from **Overview** and open:
+
+```text
+http://<dns-name>.<region>.azurecontainer.io:8000/health
+```
+
+Expected response:
+
+```json
+{"status":"ok","pipeline_loaded":true}
+```
+
+ACI provides HTTP here. Do not expose this URL directly from a browser page that requires HTTPS; call it server-side from Next.js or put an HTTPS reverse proxy in front of it.
+
+### 5. Connect Next.js
+
+Set `MICROSERVICE_URL` in the Next.js deployment environment to the ACI URL, without a trailing slash:
+
+```text
+MICROSERVICE_URL=http://<dns-name>.<region>.azurecontainer.io:8000
+```
+
+The container filesystem is temporary. Do not rely on it for permanent uploaded files. Also remove the ACI and registry resources when testing is complete to stop consuming student credit.
+
 ## 🏛️ Project Overview
 
 NiyamAI is built for **compliance-driven organizations and regulatory enforcement teams** that need a reliable system for:

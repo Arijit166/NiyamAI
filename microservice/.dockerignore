@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+dataset/
+dataset_raw/
+dataset_augmented/
+ocr_output/
+pipeline_output/
+*.jpg
+*.jpeg
+*.png
+*.pdf
+.git/
